@@ -2,6 +2,7 @@ import Foundation
 
 protocol MindWeaverEngine: Sendable {
     func listNotes(limit: Int, search: String?) async throws -> [MWNote]
+    func getNote(id: String) async throws -> MWNote
     func doctor() async throws -> CommandOutput
     func syncNotes() async throws -> CommandOutput
     func validateNotes() async throws -> CommandOutput

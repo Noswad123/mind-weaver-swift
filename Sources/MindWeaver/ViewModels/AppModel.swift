@@ -8,11 +8,13 @@ final class AppModel: ObservableObject {
     @Published var statusMessage = "Ready"
     @Published var commandOutput = ""
     @Published var isWorking = false
+    @Published var notesDirectory: URL
 
     private let engine: any MindWeaverEngine
 
     init(engine: any MindWeaverEngine = MWCLIEngine()) {
         self.engine = engine
+        self.notesDirectory = MindWeaverPaths.notesDirectory()
 
         Task {
             await refreshNotes()
@@ -38,6 +40,10 @@ final class AppModel: ObservableObject {
 
     func select(_ note: MWNote) {
         selectedNoteID = note.id
+
+        Task {
+            await loadContent(for: note)
+        }
     }
 
     func refreshNotes() async {
@@ -49,6 +55,25 @@ final class AppModel: ObservableObject {
             }
             statusMessage = "Loaded \(loaded.count) notes"
             commandOutput = "mw query notes --format json --limit 250"
+
+            if let selectedNote {
+                await loadContent(for: selectedNote)
+            }
+        }
+    }
+
+    func loadContent(for note: MWNote) async {
+        guard note.content.isEmpty else { return }
+
+        await runWork("Loading \(note.title)") {
+            let detailed = try await engine.getNote(id: note.id)
+
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index] = detailed
+            }
+
+            statusMessage = "Loaded \(detailed.title)"
+            commandOutput = "mw query notes --format json --id \(note.id)"
         }
     }
 
@@ -69,6 +94,17 @@ final class AppModel: ObservableObject {
         await runCommand("Running mw notes validate --all") {
             try await engine.validateNotes()
         }
+    }
+
+    func resolvedFileURL(for note: MWNote) -> URL? {
+        guard let path = note.path, !path.isEmpty else { return nil }
+
+        let expandedPath = NSString(string: path).expandingTildeInPath
+        if expandedPath.hasPrefix("/") {
+            return URL(fileURLWithPath: expandedPath).standardizedFileURL
+        }
+
+        return notesDirectory.appendingPathComponent(expandedPath).standardizedFileURL
     }
 
     private func runCommand(_ label: String, operation: () async throws -> CommandOutput) async {

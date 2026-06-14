@@ -31,6 +31,17 @@ actor MWCLIEngine: MindWeaverEngine {
         }
     }
 
+    func getNote(id: String) async throws -> MWNote {
+        let output = try await run(["query", "notes", "--format", "json", "--id", id])
+        guard output.succeeded else { throw MindWeaverEngineError.commandFailed(output) }
+
+        do {
+            return try JSONDecoder().decode(MWNote.self, from: Data(output.stdout.utf8))
+        } catch {
+            throw MindWeaverEngineError.invalidJSON(command: output.command, output: output.displayText)
+        }
+    }
+
     func doctor() async throws -> CommandOutput {
         try await run(["doctor"])
     }
