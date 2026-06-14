@@ -240,6 +240,7 @@ final class AppModel: ObservableObject {
     }
 
     func openSourceNote(for todo: MWTodo) {
+        sidebarMode = .notes
         select(noteID: todo.noteID)
     }
 

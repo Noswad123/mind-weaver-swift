@@ -114,7 +114,7 @@ struct TodoInspectorView: View {
                 .textSelection(.enabled)
 
                 HStack {
-                    Button("Open Source Note") {
+                    Button("View Source Note") {
                         appModel.openSourceNote(for: todo)
                     }
                     .disabled(todo.noteID == nil)
