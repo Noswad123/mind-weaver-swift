@@ -33,5 +33,10 @@ struct MindWeaverApp: App {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             }
         }
+
+        Settings {
+            SettingsView()
+                .environmentObject(appModel)
+        }
     }
 }

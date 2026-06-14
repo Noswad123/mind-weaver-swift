@@ -3,13 +3,21 @@ import Foundation
 @MainActor
 final class AppModel: ObservableObject {
     @Published var notes: [MWNote] = []
+    @Published var todos: [MWTodo] = []
     @Published var selectedNoteID: MWNote.ID?
+    @Published var selectedTodoID: MWTodo.ID?
+    @Published var selectedTodoIDs: Set<MWTodo.ID> = []
+    @Published var sidebarMode: SidebarMode = .notes
     @Published var searchText = ""
+    @Published var selectedDomains: Set<String> = []
+    @Published var domainOptions: [String] = []
     @Published var statusMessage = "Ready"
     @Published var commandOutput = ""
     @Published var isWorking = false
     @Published var notesDirectory: URL
+    @Published var mwBinaryStatus: MWBinaryStatus = .unresolved
 
+    private let noteFetchLimit = 5_000
     private let engine: any MindWeaverEngine
 
     init(engine: any MindWeaverEngine = MWCLIEngine()) {
@@ -17,6 +25,7 @@ final class AppModel: ObservableObject {
         self.notesDirectory = MindWeaverPaths.notesDirectory()
 
         Task {
+            await refreshBinaryStatus()
             await refreshNotes()
         }
     }
@@ -26,35 +35,116 @@ final class AppModel: ObservableObject {
         return notes.first { $0.id == selectedNoteID }
     }
 
+    var selectedTodo: MWTodo? {
+        guard let selectedTodoID else { return nil }
+        return todos.first { $0.id == selectedTodoID }
+    }
+
+    var selectedTodos: [MWTodo] {
+        todos.filter { selectedTodoIDs.contains($0.id) }
+    }
+
+    var dashboardNote: MWNote? {
+        notes.first { note in
+            let path = note.path?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return path == "dashboard.md"
+                || path.hasSuffix("/dashboard.md")
+                || note.title.localizedCaseInsensitiveCompare("dashboard") == .orderedSame
+        }
+    }
+
     var visibleNotes: [MWNote] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return notes }
 
         return notes.filter { note in
-            note.title.lowercased().contains(query)
+            let matchesSearch = query.isEmpty
+                || note.title.lowercased().contains(query)
                 || note.displayPath.lowercased().contains(query)
                 || note.content.lowercased().contains(query)
                 || note.tags.contains { $0.lowercased().contains(query) }
+                || note.domains.contains { $0.lowercased().contains(query) }
+
+            let matchesDomains = selectedDomains.isEmpty
+                || selectedDomains.allSatisfy { selected in note.domains.contains(selected) }
+
+            return matchesSearch && matchesDomains
         }
+    }
+
+    var visibleTodos: [MWTodo] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let visibleNoteIDs = Set(visibleNotes.map(\.id))
+
+        return todos.filter { todo in
+            let matchesSearch = query.isEmpty
+                || todo.title.lowercased().contains(query)
+                || (todo.noteTitle?.lowercased().contains(query) ?? false)
+                || (todo.path?.lowercased().contains(query) ?? false)
+
+            let matchesDomains = selectedDomains.isEmpty
+                || (todo.noteID.map { visibleNoteIDs.contains($0) } ?? false)
+
+            return matchesSearch && matchesDomains
+        }
+    }
+
+    var availableDomains: [String] {
+        if !domainOptions.isEmpty {
+            return domainOptions
+        }
+
+        return Array(Set(notes.flatMap(\.domains))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    var fileTree: [FileNode] {
+        FileNode.tree(from: visibleNotes)
     }
 
     func select(_ note: MWNote) {
         selectedNoteID = note.id
+        selectedTodoID = nil
 
         Task {
             await loadContent(for: note)
         }
     }
 
+    func selectTodo(_ todo: MWTodo) {
+        selectedTodoID = todo.id
+        if selectedTodoIDs.isEmpty {
+            selectedTodoIDs = [todo.id]
+        }
+    }
+
+    func toggleTodoSelection(_ todo: MWTodo) {
+        if selectedTodoIDs.contains(todo.id) {
+            selectedTodoIDs.remove(todo.id)
+        } else {
+            selectedTodoIDs.insert(todo.id)
+        }
+        if selectedTodoID == nil || selectedTodoID == todo.id {
+            selectedTodoID = selectedTodoIDs.contains(todo.id) ? todo.id : selectedTodoIDs.first
+        }
+    }
+
     func refreshNotes() async {
         await runWork("Loading notes") {
-            let loaded = try await engine.listNotes(limit: 250, search: nil)
+            mwBinaryStatus = await engine.binaryStatus()
+            let loaded = try await engine.listNotes(limit: noteFetchLimit, search: nil)
+            let loadedTodos = try await engine.listTodos()
+            mwBinaryStatus = await engine.binaryStatus()
             notes = loaded
+            todos = loadedTodos
+            selectedTodoIDs = selectedTodoIDs.intersection(Set(loadedTodos.map(\.id)))
+            if let selectedTodoID, !loadedTodos.contains(where: { $0.id == selectedTodoID }) {
+                self.selectedTodoID = selectedTodoIDs.first
+            }
+            domainOptions = await loadDomainOptions(fallbackNotes: loaded)
             if selectedNoteID == nil {
                 selectedNoteID = loaded.first?.id
             }
-            statusMessage = "Loaded \(loaded.count) notes"
-            commandOutput = "mw query notes --format json --limit 250"
+            statusMessage = "Loaded \(loaded.count) notes and \(loadedTodos.count) todos"
+            commandOutput = "mw query notes --format json --limit \(noteFetchLimit)\nmw query todos"
 
             if let selectedNote {
                 await loadContent(for: selectedNote)
@@ -83,6 +173,24 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshBinaryStatus() async {
+        mwBinaryStatus = await engine.binaryStatus()
+    }
+
+    func rebuildMWBinary() async {
+        await runCommand("Rebuilding mw via tsync --only mw") {
+            try await engine.rebuildLocalBinary()
+        }
+        await refreshBinaryStatus()
+    }
+
+    func deleteLocalMWBinary() async {
+        await runCommand("Deleting ~/.local/bin/mw") {
+            try await engine.deleteLocalBinary()
+        }
+        await refreshBinaryStatus()
+    }
+
     func syncNotes() async {
         await runCommand("Running mw notes sync") {
             try await engine.syncNotes()
@@ -96,6 +204,45 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func toggleTodoCompletion(_ todo: MWTodo) async {
+        await runWork("Toggling todo") {
+            let output = try await engine.toggleTodo(id: todo.id)
+            try await reloadTodosPreservingSelection()
+
+            let affectedNoteIDs = Set([todo.noteID, dashboardNote?.id].compactMap { id in
+                let trimmed = id?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                return trimmed.isEmpty ? nil : trimmed
+            })
+
+            for noteID in affectedNoteIDs {
+                if let index = notes.firstIndex(where: { $0.id == noteID }) {
+                    notes[index].content = ""
+                }
+            }
+
+            if let selectedNoteID, affectedNoteIDs.contains(selectedNoteID), let index = notes.firstIndex(where: { $0.id == selectedNoteID }) {
+                notes[index] = try await engine.getNote(id: selectedNoteID)
+            }
+
+            statusMessage = "Todo toggled"
+            commandOutput = output.displayText + "\nmw query todos"
+        }
+    }
+
+    func updateTodo(_ todo: MWTodo, patch: MWTodoUpdatePatch) async {
+        await updateTodos(ids: [todo.id], patch: patch)
+    }
+
+    func updateSelectedTodos(patch: MWTodoUpdatePatch) async {
+        let ids = Array(selectedTodoIDs).sorted()
+        guard !ids.isEmpty else { return }
+        await updateTodos(ids: ids, patch: patch)
+    }
+
+    func openSourceNote(for todo: MWTodo) {
+        select(noteID: todo.noteID)
+    }
+
     func resolvedFileURL(for note: MWNote) -> URL? {
         guard let path = note.path, !path.isEmpty else { return nil }
 
@@ -105,6 +252,71 @@ final class AppModel: ObservableObject {
         }
 
         return notesDirectory.appendingPathComponent(expandedPath).standardizedFileURL
+    }
+
+    func select(noteID: MWNote.ID?) {
+        guard let noteID, let note = notes.first(where: { $0.id == noteID }) else { return }
+        select(note)
+    }
+
+    func toggleDomain(_ domain: String) {
+        if selectedDomains.contains(domain) {
+            selectedDomains.remove(domain)
+        } else {
+            selectedDomains.insert(domain)
+        }
+    }
+
+    func clearFilters() {
+        searchText = ""
+        selectedDomains = []
+    }
+
+    private func loadDomainOptions(fallbackNotes: [MWNote]) async -> [String] {
+        do {
+            let domains = try await engine.listDomains()
+            if !domains.isEmpty {
+                return domains
+            }
+        } catch {
+            // Older mw binaries may not have `mw query domains` yet. Fall back
+            // only to domains already returned by `mw query notes`; do not read
+            // or parse local markdown frontmatter in the Swift app.
+        }
+
+        return Array(Set(fallbackNotes.flatMap(\.domains))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func updateTodos(ids: [String], patch: MWTodoUpdatePatch) async {
+        await runWork("Updating todo metadata") {
+            let output = try await engine.updateTodos(ids: ids, patch: patch)
+            try await reloadTodosPreservingSelection()
+            invalidateTodoRelatedNotes(ids: ids)
+            statusMessage = "Updated \(ids.count) todo(s)"
+            commandOutput = output.displayText + "\nmw query todos"
+        }
+    }
+
+    private func reloadTodosPreservingSelection() async throws {
+        let loadedTodos = try await engine.listTodos()
+        todos = loadedTodos
+        selectedTodoIDs = selectedTodoIDs.intersection(Set(loadedTodos.map(\.id)))
+        if let selectedTodoID, !loadedTodos.contains(where: { $0.id == selectedTodoID }) {
+            self.selectedTodoID = selectedTodoIDs.first
+        }
+    }
+
+    private func invalidateTodoRelatedNotes(ids: [String]) {
+        let affectedTodoNoteIDs = todos
+            .filter { ids.contains($0.id) }
+            .compactMap(\.noteID)
+        let affectedNoteIDs = Set((affectedTodoNoteIDs + [dashboardNote?.id].compactMap { $0 }).filter { !$0.isEmpty })
+
+        for noteID in affectedNoteIDs {
+            if let index = notes.firstIndex(where: { $0.id == noteID }) {
+                notes[index].content = ""
+            }
+        }
     }
 
     private func runCommand(_ label: String, operation: () async throws -> CommandOutput) async {

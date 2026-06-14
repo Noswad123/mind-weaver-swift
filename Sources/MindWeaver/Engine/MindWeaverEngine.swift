@@ -1,11 +1,18 @@
 import Foundation
 
 protocol MindWeaverEngine: Sendable {
+    func binaryStatus() async -> MWBinaryStatus
     func listNotes(limit: Int, search: String?) async throws -> [MWNote]
+    func listDomains() async throws -> [String]
+    func listTodos() async throws -> [MWTodo]
+    func toggleTodo(id: String) async throws -> CommandOutput
+    func updateTodos(ids: [String], patch: MWTodoUpdatePatch) async throws -> CommandOutput
     func getNote(id: String) async throws -> MWNote
     func doctor() async throws -> CommandOutput
     func syncNotes() async throws -> CommandOutput
     func validateNotes() async throws -> CommandOutput
+    func rebuildLocalBinary() async throws -> CommandOutput
+    func deleteLocalBinary() async throws -> CommandOutput
 }
 
 enum MindWeaverEngineError: LocalizedError, Sendable {

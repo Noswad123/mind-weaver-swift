@@ -7,6 +7,7 @@ struct MWNote: Identifiable, Hashable, Codable, Sendable {
     var title: String
     var content: String
     var tags: [String]
+    var domains: [String]
 
     var displayPath: String {
         path?.replacingOccurrences(of: NSHomeDirectory(), with: "~") ?? "No path from mw"
@@ -18,7 +19,8 @@ struct MWNote: Identifiable, Hashable, Codable, Sendable {
         path: String? = nil,
         title: String,
         content: String = "",
-        tags: [String] = []
+        tags: [String] = [],
+        domains: [String] = []
     ) {
         self.id = id
         self.uid = uid
@@ -26,6 +28,7 @@ struct MWNote: Identifiable, Hashable, Codable, Sendable {
         self.title = title
         self.content = content
         self.tags = tags
+        self.domains = domains
     }
 
     init(from decoder: Decoder) throws {
@@ -41,5 +44,7 @@ struct MWNote: Identifiable, Hashable, Codable, Sendable {
         self.title = container.decodeFlexibleString(for: ["title", "Title"]) ?? "Untitled"
         self.content = container.decodeFlexibleString(for: ["content", "Content"]) ?? ""
         self.tags = container.decodeFlexibleStringArray(for: ["tags", "Tags"])
+        self.domains = container.decodeFlexibleStringArray(for: ["domains", "Domains", "domain", "Domain"])
     }
+
 }
