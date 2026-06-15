@@ -57,6 +57,25 @@ actor MWCLIEngine: MindWeaverEngine {
         }
     }
 
+    func queryGraph(search: String?, domain: String?, depth: Int, limit: Int) async throws -> MWGraph {
+        var args = ["query", "graph", "--depth", String(depth), "--limit", String(limit)]
+        if let search, !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args.append(contentsOf: ["--search", search])
+        }
+        if let domain, !domain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            args.append(contentsOf: ["--domain", domain])
+        }
+
+        let output = try await run(args)
+        guard output.succeeded else { throw MindWeaverEngineError.commandFailed(output) }
+
+        do {
+            return try JSONDecoder().decode(MWGraph.self, from: Data(output.stdout.utf8))
+        } catch {
+            throw MindWeaverEngineError.invalidJSON(command: output.command, output: output.displayText)
+        }
+    }
+
     func toggleTodo(id: String) async throws -> CommandOutput {
         let output = try await run(["todos", "toggle", "--id", id])
         guard output.succeeded else { throw MindWeaverEngineError.commandFailed(output) }

@@ -5,6 +5,7 @@ protocol MindWeaverEngine: Sendable {
     func listNotes(limit: Int, search: String?) async throws -> [MWNote]
     func listDomains() async throws -> [String]
     func listTodos() async throws -> [MWTodo]
+    func queryGraph(search: String?, domain: String?, depth: Int, limit: Int) async throws -> MWGraph
     func toggleTodo(id: String) async throws -> CommandOutput
     func updateTodos(ids: [String], patch: MWTodoUpdatePatch) async throws -> CommandOutput
     func getNote(id: String) async throws -> MWNote

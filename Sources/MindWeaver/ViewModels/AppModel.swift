@@ -4,6 +4,15 @@ import Foundation
 final class AppModel: ObservableObject {
     @Published var notes: [MWNote] = []
     @Published var todos: [MWTodo] = []
+    @Published var graph: MWGraph = MWGraph(nodes: [], edges: [], meta: nil)
+    @Published var graphDepth: Int = 1
+    @Published var graphLimit: Int = 100_000
+    @Published var graphForceStrength: Double = 1.0
+    @Published var graphResetToken: Int = 0
+    @Published var graphFocusedNodeID: String?
+    @Published private(set) var graphNodesByID: [String: MWGraphNode] = [:]
+    @Published private(set) var graphAdjacency: [String: Set<String>] = [:]
+    @Published private(set) var graphDegreeByID: [String: Int] = [:]
     @Published var selectedNoteID: MWNote.ID?
     @Published var selectedTodoID: MWTodo.ID?
     @Published var selectedTodoIDs: Set<MWTodo.ID> = []
@@ -98,6 +107,10 @@ final class AppModel: ObservableObject {
 
     var fileTree: [FileNode] {
         FileNode.tree(from: visibleNotes)
+    }
+
+    var graphDomainFilter: String? {
+        selectedDomains.count == 1 ? selectedDomains.first : nil
     }
 
     func select(_ note: MWNote) {
@@ -204,6 +217,46 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func refreshGraph() async {
+        await runWork("Loading graph") {
+            let loaded = try await engine.queryGraph(
+                search: searchText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+                domain: graphDomainFilter,
+                depth: graphDepth,
+                limit: graphLimit
+            )
+            rebuildGraphIndexes(for: loaded)
+            graph = loaded
+            if let graphFocusedNodeID, !loaded.nodes.contains(where: { $0.id == graphFocusedNodeID }) {
+                self.graphFocusedNodeID = nil
+            }
+            statusMessage = "Loaded graph with \(loaded.nodes.count) nodes and \(loaded.edges.count) edges"
+            commandOutput = "mw query graph --depth \(graphDepth) --limit \(graphLimit)"
+        }
+    }
+
+    func resetGraphLayout() {
+        graphResetToken += 1
+    }
+
+    func focusGraphNode(_ nodeID: String?) {
+        graphFocusedNodeID = nodeID
+    }
+
+    func graphNeighbors(of nodeID: String) -> Set<String> {
+        graphAdjacency[nodeID, default: []]
+    }
+
+    func graphDegree(of nodeID: String) -> Int {
+        graphDegreeByID[nodeID, default: 0]
+    }
+
+    func clearSelection() {
+        selectedNoteID = nil
+        selectedTodoID = nil
+        graphFocusedNodeID = nil
+    }
+
     func toggleTodoCompletion(_ todo: MWTodo) async {
         await runWork("Toggling todo") {
             let output = try await engine.toggleTodo(id: todo.id)
@@ -288,6 +341,20 @@ final class AppModel: ObservableObject {
         return Array(Set(fallbackNotes.flatMap(\.domains))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
+    private func rebuildGraphIndexes(for graph: MWGraph) {
+        graphNodesByID = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, $0) })
+        var adjacency = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, Set<String>()) })
+        let nodeIDs = Set(graph.nodes.map(\.id))
+
+        for edge in graph.edges where nodeIDs.contains(edge.source) && nodeIDs.contains(edge.target) && edge.source != edge.target {
+            adjacency[edge.source, default: []].insert(edge.target)
+            adjacency[edge.target, default: []].insert(edge.source)
+        }
+
+        graphAdjacency = adjacency
+        graphDegreeByID = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, adjacency[$0.id, default: []].count) })
+    }
+
     private func updateTodos(ids: [String], patch: MWTodoUpdatePatch) async {
         await runWork("Updating todo metadata") {
             let output = try await engine.updateTodos(ids: ids, patch: patch)
@@ -341,4 +408,8 @@ final class AppModel: ObservableObject {
 
         isWorking = false
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

@@ -103,6 +103,35 @@ struct NoteSidebarView: View {
                 }
                 .padding(.top, 8)
             }
+
+            if appModel.sidebarMode == .graph {
+                DisclosureGroup("Graph Settings") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Stepper("Depth \(appModel.graphDepth)", value: $appModel.graphDepth, in: 0...4)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Force \(appModel.graphForceStrength, specifier: "%.1f")")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Slider(value: $appModel.graphForceStrength, in: 0.2...2.0)
+                        }
+
+                        HStack {
+                            Button("Refresh Graph") {
+                                Task { await appModel.refreshGraph() }
+                            }
+                            Button("Reset Layout") {
+                                appModel.resetGraphLayout()
+                            }
+                        }
+
+                        Text("Rendered \(appModel.graph.nodes.count) nodes • \(appModel.graph.edges.count) edges")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 8)
+                }
+            }
         }
         .padding([.top, .horizontal])
     }
@@ -254,41 +283,136 @@ struct NoteSidebarView: View {
     }
 
     private var graphExplorer: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Graph Preview", systemImage: SidebarMode.graph.systemImage)
-                .font(.headline)
-
-            Text("The graph renderer is a placeholder for now. It uses the currently visible notes to sketch a small node/edge map in the main pane.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Preview nodes")
-                    .font(.caption)
-                    .bold()
+        List {
+            Section("Results") {
+                Text("Rendered graph nodes ordered by current selection and link neighborhood.")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-
-                ForEach(Array(appModel.visibleNotes.prefix(8))) { note in
-                    Button {
-                        appModel.select(note)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "circle.fill")
-                                .font(.system(size: 7))
-                                .foregroundStyle(appModel.selectedNoteID == note.id ? Color.accentColor : Color.secondary)
-                            Text(note.title)
-                                .lineLimit(1)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
             }
 
-            Spacer()
+            if let selected = selectedGraphNode {
+                Section("Selected") {
+                    graphNodeRow(selected, role: .selected)
+                }
+
+                let connected = connectedGraphNodes(to: selected)
+                if !connected.isEmpty {
+                    Section("Connected") {
+                        ForEach(connected) { node in
+                            graphNodeRow(node, role: .connected)
+                        }
+                    }
+                }
+
+                let others = graphResultNodes(excluding: Set(([selected.id] + connected.map(\.id))))
+                if !others.isEmpty {
+                    Section("Other Results") {
+                        ForEach(Array(others.prefix(80))) { node in
+                            graphNodeRow(node, role: .other)
+                        }
+                    }
+                }
+            } else {
+                Section("All Results") {
+                    ForEach(Array(graphResultNodes(excluding: Set<String>()).prefix(120))) { node in
+                        graphNodeRow(node, role: .other)
+                    }
+                }
+            }
         }
-        .padding(.horizontal)
+    }
+
+    private enum GraphSidebarRole {
+        case selected
+        case connected
+        case other
+    }
+
+    private var selectedGraphNode: MWGraphNode? {
+        guard let focused = appModel.graphFocusedNodeID else { return nil }
+        return appModel.graphNodesByID[focused]
+    }
+
+    private func connectedGraphNodes(to selected: MWGraphNode) -> [MWGraphNode] {
+        let ids = appModel.graphNeighbors(of: selected.id)
+
+        return appModel.graph.nodes
+            .filter { ids.contains($0.id) }
+            .sorted { lhs, rhs in
+                graphDegree(lhs.id) == graphDegree(rhs.id)
+                    ? lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+                    : graphDegree(lhs.id) > graphDegree(rhs.id)
+            }
+    }
+
+    private func graphResultNodes(excluding excluded: Set<String>) -> [MWGraphNode] {
+        appModel.graph.nodes
+            .filter { !excluded.contains($0.id) }
+            .sorted { lhs, rhs in
+                if (lhs.matched ?? false) != (rhs.matched ?? false) { return lhs.matched == true }
+                if graphDegree(lhs.id) != graphDegree(rhs.id) { return graphDegree(lhs.id) > graphDegree(rhs.id) }
+                return lhs.label.localizedCaseInsensitiveCompare(rhs.label) == .orderedAscending
+            }
+    }
+
+    private func graphDegree(_ nodeID: String) -> Int {
+        appModel.graphDegree(of: nodeID)
+    }
+
+    private func graphNodeRow(_ node: MWGraphNode, role: GraphSidebarRole) -> some View {
+        Button {
+            appModel.focusGraphNode(node.id)
+            if let noteID = node.noteID {
+                appModel.select(noteID: String(noteID))
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: graphNodeIcon(role))
+                    .font(.system(size: 9))
+                    .foregroundStyle(graphNodeColor(role))
+                    .padding(.top, 4)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(node.label)
+                        .fontWeight(role == .selected ? .semibold : .regular)
+                        .lineLimit(1)
+
+                    if let path = node.path, !path.isEmpty {
+                        Text(path)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    if role == .connected {
+                        Text("connected • degree \(graphDegree(node.id))")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 3)
+        }
+        .buttonStyle(.plain)
+        .disabled(node.noteID == nil)
+        .listRowBackground(role == .selected ? Color.yellow.opacity(0.18) : Color.clear)
+    }
+
+    private func graphNodeIcon(_ role: GraphSidebarRole) -> String {
+        switch role {
+        case .selected: "largecircle.fill.circle"
+        case .connected: "circle.hexagongrid.fill"
+        case .other: "circle.fill"
+        }
+    }
+
+    private func graphNodeColor(_ role: GraphSidebarRole) -> Color {
+        switch role {
+        case .selected: Color(red: 1.0, green: 0.72, blue: 0.18)
+        case .connected: Color(red: 0.18, green: 0.88, blue: 0.95)
+        case .other: .secondary
+        }
     }
 
     private func noteRow(_ note: MWNote) -> some View {
