@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var graphNodesByID: [String: MWGraphNode] = [:]
     @Published private(set) var graphAdjacency: [String: Set<String>] = [:]
     @Published private(set) var graphDegreeByID: [String: Int] = [:]
+    @Published private(set) var graphDomainCounts: [String: Int] = [:]
     @Published var selectedNoteID: MWNote.ID?
     @Published var selectedTodoID: MWTodo.ID?
     @Published var selectedTodoIDs: Set<MWTodo.ID> = []
@@ -111,6 +112,15 @@ final class AppModel: ObservableObject {
 
     var graphDomainFilter: String? {
         selectedDomains.count == 1 ? selectedDomains.first : nil
+    }
+
+    var visibleGraph: MWGraph {
+        guard !selectedDomains.isEmpty else { return graph }
+
+        let nodes = graph.nodes.filter(graphNodeMatchesSelectedDomains)
+        let visibleNodeIDs = Set(nodes.map(\.id))
+        let edges = graph.edges.filter { visibleNodeIDs.contains($0.source) && visibleNodeIDs.contains($0.target) }
+        return MWGraph(nodes: nodes, edges: edges, meta: graph.meta)
     }
 
     func select(_ note: MWNote) {
@@ -251,6 +261,38 @@ final class AppModel: ObservableObject {
         graphDegreeByID[nodeID, default: 0]
     }
 
+    func visibleGraphNeighbors(of nodeID: String) -> Set<String> {
+        guard let node = graphNodesByID[nodeID], graphNodeMatchesSelectedDomains(node) else { return [] }
+        return graphAdjacency[nodeID, default: []].filter { neighborID in
+            graphNodesByID[neighborID].map(graphNodeMatchesSelectedDomains) ?? false
+        }
+    }
+
+    func visibleGraphDegree(of nodeID: String) -> Int {
+        visibleGraphNeighbors(of: nodeID).count
+    }
+
+    func graphNodeMatchesSelectedDomains(_ node: MWGraphNode) -> Bool {
+        guard !selectedDomains.isEmpty else { return true }
+        let nodeDomains = Set(node.domains.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() })
+        return selectedDomains.contains { selected in
+            nodeDomains.contains(selected.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+        }
+    }
+
+    func dominantGraphDomain(for node: MWGraphNode) -> String? {
+        node.domains
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .sorted { lhs, rhs in
+                let lhsCount = graphDomainCounts[lhs, default: 0]
+                let rhsCount = graphDomainCounts[rhs, default: 0]
+                if lhsCount != rhsCount { return lhsCount > rhsCount }
+                return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+            }
+            .first
+    }
+
     func clearSelection() {
         selectedNoteID = nil
         selectedTodoID = nil
@@ -345,6 +387,7 @@ final class AppModel: ObservableObject {
         graphNodesByID = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, $0) })
         var adjacency = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, Set<String>()) })
         let nodeIDs = Set(graph.nodes.map(\.id))
+        var domainCounts: [String: Int] = [:]
 
         for edge in graph.edges where nodeIDs.contains(edge.source) && nodeIDs.contains(edge.target) && edge.source != edge.target {
             adjacency[edge.source, default: []].insert(edge.target)
@@ -353,6 +396,13 @@ final class AppModel: ObservableObject {
 
         graphAdjacency = adjacency
         graphDegreeByID = Dictionary(uniqueKeysWithValues: graph.nodes.map { ($0.id, adjacency[$0.id, default: []].count) })
+
+        for node in graph.nodes {
+            for domain in node.domains.map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }) where !domain.isEmpty {
+                domainCounts[domain, default: 0] += 1
+            }
+        }
+        graphDomainCounts = domainCounts
     }
 
     private func updateTodos(ids: [String], patch: MWTodoUpdatePatch) async {

@@ -98,6 +98,9 @@ struct GraphPlaceholderView: View {
                 .onChange(of: appModel.graph.nodes.count) { _ in
                     updateViewportMetrics(viewport: geometry.size, content: graphContentSize(viewport: geometry.size))
                 }
+                .onChange(of: appModel.selectedDomains) { _ in
+                    updateViewportMetrics(viewport: geometry.size, content: graphContentSize(viewport: geometry.size))
+                }
             }
 
             Divider()
@@ -124,6 +127,10 @@ struct GraphPlaceholderView: View {
             rebuildRenderCacheIfNeeded()
             resetGraphLayout()
         }
+        .onChange(of: appModel.selectedDomains) { _ in
+            rebuildRenderCacheIfNeeded(force: true)
+            resetGraphLayout()
+        }
         .onChange(of: appModel.graphForceStrength) { _ in
             scheduleGraphLayout(autoFitAfter: true)
         }
@@ -136,7 +143,7 @@ struct GraphPlaceholderView: View {
                     .font(.title2)
                     .bold()
 
-                Text("Links between notes. Search/domain filters seed the graph; depth expands neighbors from matched nodes.")
+                Text("Links between notes. Search filters seed the graph; selected domains filter visible nodes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -155,7 +162,7 @@ struct GraphPlaceholderView: View {
                     .help("Zoom to fit all rendered nodes")
             }
 
-            Text("rendered \(appModel.graph.nodes.count) nodes • \(appModel.graph.edges.count) edges")
+            Text("rendered \(appModel.visibleGraph.nodes.count) nodes • \(appModel.visibleGraph.edges.count) edges")
                 .font(.caption)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -208,7 +215,7 @@ struct GraphPlaceholderView: View {
                     self.activeDragNodeID = nil
                     let isClick = abs(value.translation.width) < 4 && abs(value.translation.height) < 4
                     if isClick,
-                       let node = appModel.graph.nodes.first(where: { $0.id == activeDragNodeID }),
+                       let node = appModel.visibleGraph.nodes.first(where: { $0.id == activeDragNodeID }),
                        let noteID = node.noteID {
                         appModel.focusGraphNode(node.id)
                         appModel.select(noteID: String(noteID))
@@ -242,7 +249,7 @@ struct GraphPlaceholderView: View {
     }
 
     private func graphContentSize(viewport: CGSize) -> CGSize {
-        let rings = max(1, requiredHexRings(for: appModel.graph.nodes.count))
+        let rings = max(1, requiredHexRings(for: appModel.visibleGraph.nodes.count))
         let diameter = CGFloat(rings * 2 + 3) * nodeSpacing
         return CGSize(
             width: max(viewport.width, diameter + 320),
@@ -272,15 +279,13 @@ struct GraphPlaceholderView: View {
             var normalEdgePath = Path()
             var selectedEdgePath = Path()
 
-            for edge in appModel.graph.edges {
+            for edge in appModel.visibleGraph.edges {
                 guard let source = points[edge.source], let target = points[edge.target] else { continue }
                 let isSelectedEdge = selectedNodeID.map { edge.source == $0 || edge.target == $0 } ?? false
                 if isSelectedEdge {
-                    selectedEdgePath.move(to: source)
-                    selectedEdgePath.addLine(to: target)
+                    addCurvedEdge(from: source, to: target, in: size, selected: true, path: &selectedEdgePath)
                 } else {
-                    normalEdgePath.move(to: source)
-                    normalEdgePath.addLine(to: target)
+                    addCurvedEdge(from: source, to: target, in: size, selected: false, path: &normalEdgePath)
                 }
             }
 
@@ -290,7 +295,7 @@ struct GraphPlaceholderView: View {
                 context.stroke(selectedEdgePath, with: .color(.white.opacity(0.94)), lineWidth: max(1.8, 2.8 / zoom))
             }
 
-            let shouldDrawLabels = zoom >= 0.65 || appModel.graph.nodes.count <= 350
+            let shouldDrawLabels = zoom >= 0.65 || appModel.visibleGraph.nodes.count <= 350
             for node in orderedGraphNodes() {
                 guard let point = points[node.id] else { continue }
                 let selected = selectedNodeID == node.id
@@ -311,6 +316,32 @@ struct GraphPlaceholderView: View {
                 }
             }
         }
+    }
+
+    private func addCurvedEdge(from source: CGPoint, to target: CGPoint, in size: CGSize, selected: Bool, path: inout Path) {
+        let dx = target.x - source.x
+        let dy = target.y - source.y
+        let distance = max(1, hypot(dx, dy))
+        let midpoint = CGPoint(x: (source.x + target.x) / 2, y: (source.y + target.y) / 2)
+        let graphCenter = CGPoint(x: size.width / 2, y: size.height / 2)
+
+        var normal = CGVector(dx: -dy / distance, dy: dx / distance)
+        let radial = CGVector(dx: midpoint.x - graphCenter.x, dy: midpoint.y - graphCenter.y)
+        let outwardDot = normal.dx * radial.dx + normal.dy * radial.dy
+        if outwardDot < 0 {
+            normal = CGVector(dx: -normal.dx, dy: -normal.dy)
+        }
+
+        let radialDistance = max(1, hypot(radial.dx, radial.dy))
+        let radialBlend = min(1, radialDistance / max(1, min(size.width, size.height) * 0.38))
+        let curvature = min(selected ? 150 : 110, max(selected ? 28 : 18, distance * (selected ? 0.18 : 0.13))) * (0.70 + radialBlend * 0.45)
+        let control = CGPoint(
+            x: midpoint.x + normal.dx * curvature,
+            y: midpoint.y + normal.dy * curvature
+        )
+
+        path.move(to: source)
+        path.addQuadCurve(to: target, control: control)
     }
 
     private func nodePoints(in size: CGSize) -> [String: CGPoint] {
@@ -340,13 +371,7 @@ struct GraphPlaceholderView: View {
         let componentAnchors = componentAnchorPoints(topology: topology, size: size)
         for (componentIndex, component) in topology.connectedComponents.enumerated() {
             let componentCenter = componentAnchors[componentIndex] ?? center
-            let orderedIDs = orderedComponentNodeIDs(component, topology: topology)
-            let coordinates = hexCoordinates(count: orderedIDs.count)
-            let spacing = componentNodeSpacing(for: orderedIDs.count)
-            for (index, nodeID) in orderedIDs.enumerated() {
-                guard index < coordinates.count else { continue }
-                out[nodeID] = axialToPoint(coordinates[index], center: componentCenter, spacing: spacing)
-            }
+            out.merge(radialBFSComponentPoints(component, center: componentCenter, topology: topology)) { current, _ in current }
         }
 
         let isolatedAnchors = isolatedAnchorPoints(topology: topology, size: size)
@@ -356,6 +381,146 @@ struct GraphPlaceholderView: View {
             }
         }
         return out
+    }
+
+    private func radialBFSComponentPoints(_ component: [String], center: CGPoint, topology: GraphTopology) -> [String: CGPoint] {
+        guard !component.isEmpty else { return [:] }
+        guard component.count > 1 else { return [component[0]: center] }
+
+        let componentSet = Set(component)
+        let root = componentRoot(component, topology: topology)
+        var visited: Set<String> = [root]
+        var queue: [String] = [root]
+        var order: [String] = []
+        var depth: [String: Int] = [root: 0]
+        var children = Dictionary(uniqueKeysWithValues: component.map { ($0, [String]()) })
+        var cursor = 0
+
+        while cursor < queue.count {
+            let nodeID = queue[cursor]
+            cursor += 1
+            order.append(nodeID)
+
+            let neighbors = topology.adjacency[nodeID, default: []]
+                .filter { componentSet.contains($0) && !visited.contains($0) }
+                .sorted { lhs, rhs in
+                    compareBFSPriority(lhs, rhs, topology: topology)
+                }
+
+            for neighbor in neighbors {
+                visited.insert(neighbor)
+                depth[neighbor] = (depth[nodeID] ?? 0) + 1
+                children[nodeID, default: []].append(neighbor)
+                queue.append(neighbor)
+            }
+        }
+
+        let remainder = component.filter { !visited.contains($0) }.sorted { lhs, rhs in
+            compareBFSPriority(lhs, rhs, topology: topology)
+        }
+        for nodeID in remainder {
+            depth[nodeID] = 1
+            children[root, default: []].append(nodeID)
+            order.append(nodeID)
+        }
+
+        var subtreeSize = Dictionary(uniqueKeysWithValues: component.map { ($0, 1) })
+        for nodeID in order.reversed() {
+            let total = children[nodeID, default: []].reduce(1) { partial, childID in
+                partial + subtreeSize[childID, default: 1]
+            }
+            subtreeSize[nodeID] = total
+        }
+
+        for nodeID in component {
+            children[nodeID, default: []].sort { lhs, rhs in
+                compareSubtreePriority(lhs, rhs, subtreeSize: subtreeSize, topology: topology)
+            }
+        }
+
+        var angles: [String: CGFloat] = [root: 0]
+        assignRadialAngles(parentID: root, startAngle: -CGFloat.pi, endAngle: CGFloat.pi, children: children, subtreeSize: subtreeSize, angles: &angles)
+
+        let levelCounts = Dictionary(grouping: component, by: { depth[$0, default: 0] }).mapValues(\.count)
+        var out: [String: CGPoint] = [root: center]
+        for nodeID in component where nodeID != root {
+            let level = depth[nodeID, default: 1]
+            let radius = radialRadius(for: level, levelCount: levelCounts[level, default: 1], componentSize: component.count)
+            let angle = angles[nodeID] ?? fallbackAngle(for: nodeID)
+            out[nodeID] = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
+        }
+        return out
+    }
+
+    private func componentRoot(_ component: [String], topology: GraphTopology) -> String {
+        component.sorted { lhs, rhs in
+            let lhsMatched = topology.nodesByID[lhs]?.matched == true
+            let rhsMatched = topology.nodesByID[rhs]?.matched == true
+            if lhsMatched != rhsMatched { return lhsMatched }
+            let lhsDegree = topology.degree[lhs, default: 0]
+            let rhsDegree = topology.degree[rhs, default: 0]
+            if lhsDegree != rhsDegree { return lhsDegree > rhsDegree }
+            return (topology.nodesByID[lhs]?.label ?? lhs).localizedCaseInsensitiveCompare(topology.nodesByID[rhs]?.label ?? rhs) == .orderedAscending
+        }.first ?? component[0]
+    }
+
+    private func compareBFSPriority(_ lhs: String, _ rhs: String, topology: GraphTopology) -> Bool {
+        let lhsDegree = topology.degree[lhs, default: 0]
+        let rhsDegree = topology.degree[rhs, default: 0]
+        if lhsDegree != rhsDegree { return lhsDegree > rhsDegree }
+        return (topology.nodesByID[lhs]?.label ?? lhs).localizedCaseInsensitiveCompare(topology.nodesByID[rhs]?.label ?? rhs) == .orderedAscending
+    }
+
+    private func compareSubtreePriority(_ lhs: String, _ rhs: String, subtreeSize: [String: Int], topology: GraphTopology) -> Bool {
+        let lhsSubtree = subtreeSize[lhs, default: 1]
+        let rhsSubtree = subtreeSize[rhs, default: 1]
+        if lhsSubtree != rhsSubtree { return lhsSubtree > rhsSubtree }
+        return compareBFSPriority(lhs, rhs, topology: topology)
+    }
+
+    private func assignRadialAngles(parentID: String, startAngle: CGFloat, endAngle: CGFloat, children: [String: [String]], subtreeSize: [String: Int], angles: inout [String: CGFloat]) {
+        let childIDs = children[parentID, default: []]
+        guard !childIDs.isEmpty else { return }
+
+        let weights = childIDs.map { max(1, subtreeSize[$0, default: 1]) }
+        let totalWeight = max(1, weights.reduce(0, +))
+        var cursor = startAngle
+
+        for (index, childID) in childIDs.enumerated() {
+            let fraction = CGFloat(weights[index]) / CGFloat(totalWeight)
+            let width = (endAngle - startAngle) * fraction
+            let childStart = cursor
+            let childEnd = index == childIDs.indices.last ? endAngle : cursor + width
+            angles[childID] = (childStart + childEnd) / 2
+            cursor = childEnd
+        }
+
+        for childID in childIDs {
+            let siblings = childIDs.count
+            let angle = angles[childID] ?? 0
+            let childWidth = max(0.08, (endAngle - startAngle) * CGFloat(max(1, subtreeSize[childID, default: 1])) / CGFloat(totalWeight))
+            let padding = min(childWidth * 0.20, CGFloat.pi / CGFloat(max(8, siblings * 3)))
+            assignRadialAngles(
+                parentID: childID,
+                startAngle: angle - (childWidth / 2) + padding,
+                endAngle: angle + (childWidth / 2) - padding,
+                children: children,
+                subtreeSize: subtreeSize,
+                angles: &angles
+            )
+        }
+    }
+
+    private func radialRadius(for level: Int, levelCount: Int, componentSize: Int) -> CGFloat {
+        let baseSpacing = componentNodeSpacing(for: componentSize)
+        let levelRadius = baseSpacing * CGFloat(max(1, level))
+        let circumferenceRadius = CGFloat(levelCount) * nodeSpacing * 0.58 / (2 * CGFloat.pi)
+        return max(levelRadius, circumferenceRadius + baseSpacing * 0.45)
+    }
+
+    private func fallbackAngle(for nodeID: String) -> CGFloat {
+        let bucket = abs(nodeID.hashValue % 360)
+        return CGFloat(bucket) * CGFloat.pi / 180
     }
 
     private func topologicallyOrderedNodes() -> [MWGraphNode] {
@@ -377,12 +542,12 @@ struct GraphPlaceholderView: View {
     }
 
     private func graphTopology() -> GraphTopology {
-        let nodes = appModel.graph.nodes
+        let nodes = appModel.visibleGraph.nodes
         let nodesByID = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
         let nodeIDs = Set(nodes.map(\.id))
         var adjacency = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, Set<String>()) })
 
-        for edge in appModel.graph.edges where nodeIDs.contains(edge.source) && nodeIDs.contains(edge.target) && edge.source != edge.target {
+        for edge in appModel.visibleGraph.edges where nodeIDs.contains(edge.source) && nodeIDs.contains(edge.target) && edge.source != edge.target {
             adjacency[edge.source, default: []].insert(edge.target)
             adjacency[edge.target, default: []].insert(edge.source)
         }
@@ -624,7 +789,7 @@ struct GraphPlaceholderView: View {
     private func nearestNode(to point: CGPoint, in size: CGSize, maxDistance: CGFloat) -> (node: MWGraphNode, distance: CGFloat)? {
         let points = nodePoints(in: size)
         var best: (node: MWGraphNode, distance: CGFloat)?
-        for node in appModel.graph.nodes {
+        for node in appModel.visibleGraph.nodes {
             guard let nodePoint = points[node.id] else { continue }
             let distance = hypot(nodePoint.x - point.x, nodePoint.y - point.y)
             if best == nil || distance < best!.distance {
@@ -642,8 +807,10 @@ struct GraphPlaceholderView: View {
             return Color(nsColor: .systemGray).opacity(0.48)
         }
         if node.unknown == true || node.label == "unknown" { return .red.opacity(0.78) }
+        if let domain = appModel.dominantGraphDomain(for: node) {
+            return DomainColorPalette.color(for: domain).opacity(node.matched == true ? 0.96 : 0.82)
+        }
         if node.matched == true { return Color(red: 0.82, green: 0.48, blue: 0.18) }
-        if node.domains.contains(where: { $0.caseInsensitiveCompare("recipe") == .orderedSame }) { return Color(red: 0.70, green: 0.36, blue: 0.62) }
         return Color(red: 0.34, green: 0.52, blue: 0.72)
     }
 
@@ -735,7 +902,7 @@ struct GraphPlaceholderView: View {
     }
 
     private func autoFitGraphIfNeeded() {
-        guard !appModel.graph.nodes.isEmpty else { return }
+        guard !appModel.visibleGraph.nodes.isEmpty else { return }
         let signature = graphAutoFitSignature()
         guard signature != lastAutoFitSignature else { return }
         fitAllNodes()
@@ -744,24 +911,28 @@ struct GraphPlaceholderView: View {
     }
 
     private func graphAutoFitSignature() -> String {
-        "\(appModel.graph.nodes.count):\(appModel.graph.edges.count):\(appModel.graphResetToken)"
+        "\(appModel.visibleGraph.nodes.count):\(appModel.visibleGraph.edges.count):\(selectedDomainSignature()):\(appModel.graphResetToken)"
     }
 
     private func graphRenderSignature() -> String {
-        "\(appModel.graph.nodes.count):\(appModel.graph.edges.count)"
+        "\(appModel.visibleGraph.nodes.count):\(appModel.visibleGraph.edges.count):\(selectedDomainSignature())"
+    }
+
+    private func selectedDomainSignature() -> String {
+        appModel.selectedDomains.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }.joined(separator: "|")
     }
 
     private func rebuildRenderCacheIfNeeded(force: Bool = false) {
         let signature = graphRenderSignature()
         guard force || renderCache.signature != signature else { return }
-        guard !appModel.graph.nodes.isEmpty else {
+        guard !appModel.visibleGraph.nodes.isEmpty else {
             renderCache = .empty
             return
         }
 
         let topology = graphTopology()
         let orderedNodes = topologicallyOrderedNodes(topology: topology)
-        let noteIDToGraphNodeID = Dictionary(uniqueKeysWithValues: appModel.graph.nodes.compactMap { node in
+        let noteIDToGraphNodeID = Dictionary(uniqueKeysWithValues: appModel.visibleGraph.nodes.compactMap { node in
             node.noteID.map { (String($0), node.id) }
         })
         renderCache = GraphRenderCache(
@@ -811,6 +982,11 @@ struct GraphPlaceholderView: View {
 
     private func resetGraphLayout() {
         guard currentContentSize.width > 0, currentContentSize.height > 0 else { return }
+        guard !appModel.visibleGraph.nodes.isEmpty else {
+            graphPositions = [:]
+            cancelGraphLayout()
+            return
+        }
         let signature = graphAutoFitSignature()
         guard signature != lastLayoutResetSignature else { return }
         lastLayoutResetSignature = signature
@@ -823,12 +999,12 @@ struct GraphPlaceholderView: View {
     private func scheduleGraphLayout(autoFitAfter: Bool) {
         guard currentContentSize.width > 0,
               currentContentSize.height > 0,
-              !appModel.graph.nodes.isEmpty else { return }
+              !appModel.visibleGraph.nodes.isEmpty else { return }
 
         cancelGraphLayout()
         layoutGeneration += 1
         let generation = layoutGeneration
-        let graph = appModel.graph
+        let graph = appModel.visibleGraph
         let contentSize = GraphLayoutSize(currentContentSize)
         let initialPositions = graphPositions.mapValues(GraphLayoutPoint.init)
         let forceStrength = appModel.graphForceStrength

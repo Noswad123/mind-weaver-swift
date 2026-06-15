@@ -78,6 +78,7 @@ struct NoteSidebarView: View {
                                         Text(domain)
                                             .font(.caption)
                                             .lineLimit(1)
+                                            .foregroundStyle(domainForeground(domain))
                                             .padding(.horizontal, 8)
                                             .padding(.vertical, 5)
                                             .frame(maxWidth: .infinity)
@@ -90,7 +91,7 @@ struct NoteSidebarView: View {
                         .frame(maxHeight: 140)
 
                         if !appModel.selectedDomains.isEmpty {
-                            Text("Matching notes that include all selected domains.")
+                            Text(appModel.sidebarMode == .graph ? "Graph nodes matching any selected domain." : "Matching notes that include all selected domains.")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
@@ -125,7 +126,7 @@ struct NoteSidebarView: View {
                             }
                         }
 
-                        Text("Rendered \(appModel.graph.nodes.count) nodes • \(appModel.graph.edges.count) edges")
+                        Text("Rendered \(appModel.visibleGraph.nodes.count) nodes • \(appModel.visibleGraph.edges.count) edges")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -297,7 +298,7 @@ struct NoteSidebarView: View {
 
                 let connected = connectedGraphNodes(to: selected)
                 if !connected.isEmpty {
-                    Section("Connected") {
+                    Section("Connected (\(connected.count))") {
                         ForEach(connected) { node in
                             graphNodeRow(node, role: .connected)
                         }
@@ -330,13 +331,14 @@ struct NoteSidebarView: View {
 
     private var selectedGraphNode: MWGraphNode? {
         guard let focused = appModel.graphFocusedNodeID else { return nil }
-        return appModel.graphNodesByID[focused]
+        guard let node = appModel.graphNodesByID[focused], appModel.graphNodeMatchesSelectedDomains(node) else { return nil }
+        return node
     }
 
     private func connectedGraphNodes(to selected: MWGraphNode) -> [MWGraphNode] {
-        let ids = appModel.graphNeighbors(of: selected.id)
+        let ids = appModel.visibleGraphNeighbors(of: selected.id)
 
-        return appModel.graph.nodes
+        return appModel.visibleGraph.nodes
             .filter { ids.contains($0.id) }
             .sorted { lhs, rhs in
                 graphDegree(lhs.id) == graphDegree(rhs.id)
@@ -346,7 +348,7 @@ struct NoteSidebarView: View {
     }
 
     private func graphResultNodes(excluding excluded: Set<String>) -> [MWGraphNode] {
-        appModel.graph.nodes
+        appModel.visibleGraph.nodes
             .filter { !excluded.contains($0.id) }
             .sorted { lhs, rhs in
                 if (lhs.matched ?? false) != (rhs.matched ?? false) { return lhs.matched == true }
@@ -356,7 +358,7 @@ struct NoteSidebarView: View {
     }
 
     private func graphDegree(_ nodeID: String) -> Int {
-        appModel.graphDegree(of: nodeID)
+        appModel.visibleGraphDegree(of: nodeID)
     }
 
     private func graphNodeRow(_ node: MWGraphNode, role: GraphSidebarRole) -> some View {
@@ -369,7 +371,7 @@ struct NoteSidebarView: View {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: graphNodeIcon(role))
                     .font(.system(size: 9))
-                    .foregroundStyle(graphNodeColor(role))
+                    .foregroundStyle(graphNodeColor(node, role: role))
                     .padding(.top, 4)
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -407,11 +409,12 @@ struct NoteSidebarView: View {
         }
     }
 
-    private func graphNodeColor(_ role: GraphSidebarRole) -> Color {
+    private func graphNodeColor(_ node: MWGraphNode, role: GraphSidebarRole) -> Color {
         switch role {
         case .selected: Color(red: 1.0, green: 0.72, blue: 0.18)
         case .connected: Color(red: 0.18, green: 0.88, blue: 0.95)
-        case .other: .secondary
+        case .other:
+            appModel.dominantGraphDomain(for: node).map(DomainColorPalette.color(for:)) ?? .secondary
         }
     }
 
@@ -443,8 +446,16 @@ struct NoteSidebarView: View {
         .listRowBackground(appModel.selectedNoteID == note.id ? Color.accentColor.opacity(0.16) : Color.clear)
     }
 
-    private func domainBackground(_ domain: String) -> some ShapeStyle {
-        appModel.selectedDomains.contains(domain) ? Color.accentColor.opacity(0.22) : Color.secondary.opacity(0.12)
+    private func domainBackground(_ domain: String) -> Color {
+        if appModel.selectedDomains.contains(domain) {
+            return DomainColorPalette.averageColor(for: appModel.selectedDomains)?.opacity(0.58)
+                ?? DomainColorPalette.color(for: domain).opacity(0.58)
+        }
+        return DomainColorPalette.color(for: domain).opacity(0.16)
+    }
+
+    private func domainForeground(_ domain: String) -> Color {
+        appModel.selectedDomains.contains(domain) ? .primary : .secondary
     }
 
     private func explorerModeBackground(_ mode: SidebarMode) -> some ShapeStyle {

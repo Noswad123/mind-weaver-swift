@@ -90,6 +90,7 @@ actor GraphLayoutEngine {
                 applySpring(sourceID: edge.source, source: source, targetID: edge.target, target: target, topology: topology, forces: &forces)
             }
 
+            applyParentOrbitForces(topology: topology, positions: positions, forces: &forces)
             applyHubClusterForces(topology: topology, positions: positions, forces: &forces)
 
             for node in nodes {
@@ -99,7 +100,8 @@ actor GraphLayoutEngine {
                     applyTargetForce(nodeID: node.id, point: point, target: target, strength: 0.00058, forces: &forces)
                 } else if let componentIndex = topology.componentIndexByNodeID[node.id] {
                     let target = componentAnchors[componentIndex] ?? center
-                    let strength = componentIndex == 0 ? 0.00012 : 0.00022
+                    let componentSize = topology.connectedComponents.indices.contains(componentIndex) ? topology.connectedComponents[componentIndex].count : 1
+                    let strength = componentGravityStrength(componentIndex: componentIndex, componentSize: componentSize)
                     applyTargetForce(nodeID: node.id, point: point, target: target, strength: strength, forces: &forces)
                 } else {
                     applyTargetForce(nodeID: node.id, point: point, target: center, strength: 0.00014, forces: &forces)
@@ -117,8 +119,7 @@ actor GraphLayoutEngine {
                 velocity = clampedVelocity(velocity, max: maxVelocity)
                 point.x += velocity.dx
                 point.y += velocity.dy
-                point.x = min(max(100, point.x), contentSize.width - 100)
-                point.y = min(max(100, point.y), contentSize.height - 100)
+                point = constrainedToCircularBounds(point, size: contentSize, padding: 120)
                 positions[node.id] = point
                 velocities[node.id] = velocity
             }
@@ -129,6 +130,18 @@ actor GraphLayoutEngine {
 
     private func spatialKey(_ point: GraphLayoutPoint, cellSize: Double) -> String {
         "\(Int(floor(point.x / cellSize))),\(Int(floor(point.y / cellSize)))"
+    }
+
+    private func componentGravityStrength(componentIndex: Int, componentSize: Int) -> Double {
+        let size = Double(max(1, componentSize))
+        if size > 500 {
+            return 0.000018
+        }
+        if size > 150 {
+            return 0.000035
+        }
+        let base = componentIndex == 0 ? 0.000075 : 0.00014
+        return base / max(1.0, sqrt(size) * 0.12)
     }
 
     private func componentAnchorPoints(topology: LayoutTopology, size: GraphLayoutSize) -> [Int: GraphLayoutPoint] {
@@ -206,9 +219,11 @@ actor GraphLayoutEngine {
         let mass = nodeRepulsionMass(id, topology: topology) + nodeRepulsionMass(otherID, topology: topology)
         let connected = topology.adjacency[id, default: []].contains(otherID)
         let sharedHub = topology.primaryHubByNodeID[id] != nil && topology.primaryHubByNodeID[id] == topology.primaryHubByNodeID[otherID]
-        let rangeMultiplier = connected ? 0.82 : (sharedHub ? 1.28 : 1.0)
-        let strengthMultiplier = connected ? 0.35 : (sharedHub ? 1.45 : 1.18)
-        let range = nodeSpacing * min(4.2, (1.12 + mass * 0.18) * rangeMultiplier)
+        let sharedHubSize = topology.primaryHubByNodeID[id].flatMap { topology.hubGroups[$0]?.count } ?? 1
+        let sharedHubScale = sharedHub ? min(1.9, 1.20 + sqrt(Double(sharedHubSize)) * 0.045) : 1.0
+        let rangeMultiplier = connected ? 0.82 : (sharedHub ? sharedHubScale : 1.04)
+        let strengthMultiplier = connected ? 0.35 : (sharedHub ? min(2.1, 1.35 + sqrt(Double(sharedHubSize)) * 0.035) : 1.22)
+        let range = nodeSpacing * min(5.4, (1.12 + mass * 0.18) * rangeMultiplier)
         guard distance < range else { return }
         let strength = min(12.0, ((4_800 * mass) / (distance * distance)) * strengthMultiplier)
         let fx = (dx / distance) * strength
@@ -297,10 +312,85 @@ actor GraphLayoutEngine {
         let sourceDegree = Double(max(1, topology.degree[sourceID, default: 1]))
         let targetDegree = Double(max(1, topology.degree[targetID, default: 1]))
         let hubDegree = max(sourceDegree, targetDegree)
-        let hubFactor = min(1.35, log2(hubDegree + 1) * 0.18)
+        let childHubDegree = min(sourceDegree, targetDegree)
+        let hubFactor = min(1.55, log2(hubDegree + 1) * 0.20)
+        let hubToHubFactor = childHubDegree >= 4 ? min(1.25, log2(childHubDegree + 1) * 0.26) : 0
         let sameHub = topology.primaryHubByNodeID[sourceID] != nil && topology.primaryHubByNodeID[sourceID] == topology.primaryHubByNodeID[targetID]
         let sameHubFactor = sameHub ? 0.18 : 0
-        return nodeSpacing * (0.82 + hubFactor + sameHubFactor)
+        return nodeSpacing * (0.78 + hubFactor + hubToHubFactor + sameHubFactor)
+    }
+
+    private func applyParentOrbitForces(topology: LayoutTopology, positions: [String: GraphLayoutPoint], forces: inout [String: LayoutVector]) {
+        for nodeID in topology.nodesByID.keys {
+            guard let parentID = orbitParent(for: nodeID, topology: topology),
+                  parentID != nodeID,
+                  let point = positions[nodeID],
+                  let parent = positions[parentID] else { continue }
+
+            let desiredRadius = parentOrbitRadius(nodeID: nodeID, parentID: parentID, topology: topology)
+            let childDegree = topology.degree[nodeID, default: 0]
+            let childGroupSize = topology.hubGroups[nodeID]?.count ?? 1
+            let isChildHub = childDegree >= 4 || childGroupSize >= 5
+            let strength = isChildHub ? 0.010 : 0.016
+            applyOrbitForce(
+                nodeID: nodeID,
+                point: point,
+                parentID: parentID,
+                parent: parent,
+                desiredRadius: desiredRadius,
+                strength: strength,
+                parentCounterScale: isChildHub ? 0.025 : 0.055,
+                forces: &forces
+            )
+        }
+    }
+
+    private func orbitParent(for nodeID: String, topology: LayoutTopology) -> String? {
+        if let primaryHub = topology.primaryHubByNodeID[nodeID], primaryHub != nodeID {
+            return primaryHub
+        }
+
+        let nodeDegree = topology.degree[nodeID, default: 0]
+        return topology.adjacency[nodeID, default: []]
+            .filter { topology.degree[$0, default: 0] > nodeDegree }
+            .sorted { lhs, rhs in
+                let lhsDegree = topology.degree[lhs, default: 0]
+                let rhsDegree = topology.degree[rhs, default: 0]
+                if lhsDegree != rhsDegree { return lhsDegree > rhsDegree }
+                return (topology.nodesByID[lhs]?.label ?? lhs).localizedCaseInsensitiveCompare(topology.nodesByID[rhs]?.label ?? rhs) == .orderedAscending
+            }
+            .first
+    }
+
+    private func parentOrbitRadius(nodeID: String, parentID: String, topology: LayoutTopology) -> Double {
+        let parentGroupSize = Double(max(1, topology.hubGroups[parentID]?.count ?? 1))
+        let parentDegree = Double(max(1, topology.degree[parentID, default: 1]))
+        let childDegree = Double(max(1, topology.degree[nodeID, default: 1]))
+        let childGroupSize = Double(max(1, topology.hubGroups[nodeID]?.count ?? 1))
+        let childIsHub = childDegree >= 4 || childGroupSize >= 5
+        let parentScale = 0.92 + sqrt(parentGroupSize) * 0.060 + log2(parentDegree + 1) * 0.10
+        let childHubScale = childIsHub ? min(2.2, sqrt(childGroupSize) * 0.14 + log2(childDegree + 1) * 0.22) : 0
+        return nodeSpacing * min(7.0, parentScale + childHubScale)
+    }
+
+    private func applyOrbitForce(nodeID: String, point: GraphLayoutPoint, parentID: String, parent: GraphLayoutPoint, desiredRadius: Double, strength: Double, parentCounterScale: Double, forces: inout [String: LayoutVector]) {
+        var dx = parent.x - point.x
+        var dy = parent.y - point.y
+        var distance = hypot(dx, dy)
+        if distance < 1 {
+            let seed = Double(abs(nodeID.hashValue ^ parentID.hashValue) % 360) * Double.pi / 180
+            dx = cos(seed)
+            dy = sin(seed)
+            distance = max(1, hypot(dx, dy))
+        }
+
+        let delta = distance - desiredRadius
+        let fx = (dx / distance) * delta * strength
+        let fy = (dy / distance) * delta * strength
+        forces[nodeID, default: .zero].dx += fx
+        forces[nodeID, default: .zero].dy += fy
+        forces[parentID, default: .zero].dx -= fx * parentCounterScale
+        forces[parentID, default: .zero].dy -= fy * parentCounterScale
     }
 
     private func applyHubClusterForces(topology: LayoutTopology, positions: [String: GraphLayoutPoint], forces: inout [String: LayoutVector]) {
@@ -314,8 +404,8 @@ actor GraphLayoutEngine {
             guard let hubPoint = positions[hubID] else { continue }
             let count = Double(members.count)
             let hubDegree = Double(max(1, topology.degree[hubID, default: 1]))
-            let desiredRadius = nodeSpacing * min(4.8, 1.05 + sqrt(count) * 0.12 + log2(hubDegree + 1) * 0.20)
-            let annulusStrength = min(0.026, 0.010 + sqrt(count) * 0.0012)
+            let desiredRadius = nodeSpacing * min(7.0, 1.05 + sqrt(count) * 0.18 + log2(hubDegree + 1) * 0.24)
+            let annulusStrength = min(0.030, 0.010 + sqrt(count) * 0.0014)
 
             for memberID in members where memberID != hubID {
                 guard let memberPoint = positions[memberID] else { continue }
@@ -323,6 +413,53 @@ actor GraphLayoutEngine {
             }
 
             applyHubExternalRepulsion(hubID: hubID, members: members, center: hubPoint, desiredRadius: desiredRadius, topology: topology, positions: positions, forces: &forces)
+        }
+
+        applyHubBodyRepulsion(groups: Array(groups), positions: positions, forces: &forces)
+    }
+
+    private func applyHubBodyRepulsion(groups: [(key: String, value: [String])], positions: [String: GraphLayoutPoint], forces: inout [String: LayoutVector]) {
+        let bodies: [ComponentBody] = groups.enumerated().compactMap { index, pair in
+            let memberPoints = pair.value.compactMap { positions[$0] }
+            guard !memberPoints.isEmpty else { return nil }
+            let center = GraphLayoutPoint(
+                x: memberPoints.reduce(0) { $0 + $1.x } / Double(memberPoints.count),
+                y: memberPoints.reduce(0) { $0 + $1.y } / Double(memberPoints.count)
+            )
+            let radius = nodeSpacing * min(6.5, 1.25 + sqrt(Double(pair.value.count)) * 0.34)
+            return ComponentBody(index: index, nodeIDs: pair.value, center: center, mass: sqrt(Double(pair.value.count)), radius: radius)
+        }
+        guard bodies.count > 1 else { return }
+
+        for i in bodies.indices {
+            for j in bodies.index(after: i)..<bodies.count {
+                let a = bodies[i]
+                let b = bodies[j]
+                var dx = a.center.x - b.center.x
+                var dy = a.center.y - b.center.y
+                var distance = hypot(dx, dy)
+                if distance < 1 {
+                    let angle = Double((a.index + 5) * (b.index + 11)).truncatingRemainder(dividingBy: 23) / 23 * 2 * Double.pi
+                    dx = cos(angle)
+                    dy = sin(angle)
+                    distance = 1
+                }
+                let desiredDistance = a.radius + b.radius + nodeSpacing * 1.1
+                guard distance < desiredDistance else { continue }
+                let overlap = (desiredDistance - distance) / desiredDistance
+                let ux = dx / distance
+                let uy = dy / distance
+                let forceOnA = min(5.5, overlap * b.mass * 0.42)
+                let forceOnB = min(5.5, overlap * a.mass * 0.42)
+                for nodeID in a.nodeIDs {
+                    forces[nodeID, default: .zero].dx += ux * forceOnA
+                    forces[nodeID, default: .zero].dy += uy * forceOnA
+                }
+                for nodeID in b.nodeIDs {
+                    forces[nodeID, default: .zero].dx -= ux * forceOnB
+                    forces[nodeID, default: .zero].dy -= uy * forceOnB
+                }
+            }
         }
     }
 
@@ -347,8 +484,8 @@ actor GraphLayoutEngine {
 
     private func applyHubExternalRepulsion(hubID: String, members: [String], center: GraphLayoutPoint, desiredRadius: Double, topology: LayoutTopology, positions: [String: GraphLayoutPoint], forces: inout [String: LayoutVector]) {
         let memberSet = Set(members)
-        let repelRadius = desiredRadius + nodeSpacing * 2.2
         let groupMass = sqrt(Double(members.count))
+        let repelRadius = desiredRadius + nodeSpacing * min(4.2, 1.9 + groupMass * 0.20)
         for (nodeID, point) in positions where !memberSet.contains(nodeID) {
             guard !topology.adjacency[hubID, default: []].contains(nodeID) else { continue }
             var dx = point.x - center.x
@@ -362,7 +499,7 @@ actor GraphLayoutEngine {
                 distance = max(1, hypot(dx, dy))
             }
             let overlap = (repelRadius - distance) / repelRadius
-            let force = min(7.0, overlap * groupMass * 0.72)
+            let force = min(9.5, overlap * groupMass * 0.88)
             let ux = dx / distance
             let uy = dy / distance
             forces[nodeID, default: .zero].dx += ux * force
@@ -393,6 +530,19 @@ actor GraphLayoutEngine {
         let magnitude = hypot(velocity.dx, velocity.dy)
         guard magnitude > max, magnitude > 0 else { return velocity }
         return LayoutVector(dx: velocity.dx / magnitude * max, dy: velocity.dy / magnitude * max)
+    }
+
+    private func constrainedToCircularBounds(_ point: GraphLayoutPoint, size: GraphLayoutSize, padding: Double) -> GraphLayoutPoint {
+        let center = GraphLayoutPoint(x: size.width / 2, y: size.height / 2)
+        let radius = max(80, min(size.width, size.height) / 2 - padding)
+        let dx = point.x - center.x
+        let dy = point.y - center.y
+        let distance = hypot(dx, dy)
+        guard distance > radius, distance > 0 else { return point }
+        return GraphLayoutPoint(
+            x: center.x + (dx / distance) * radius,
+            y: center.y + (dy / distance) * radius
+        )
     }
 }
 
