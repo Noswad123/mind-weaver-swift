@@ -64,16 +64,12 @@ struct ContentView: View {
                 .help("Open Settings")
             }
         }
+        .toolbar(appModel.showDashboard ? .hidden : .visible, for: .windowToolbar)
         .frame(minWidth: 1_000, minHeight: 680)
     }
 
     private var hiddenKeyboardShortcuts: some View {
         VStack {
-            Button("Toggle Sidebar") {
-                appModel.toggleSidebar()
-            }
-            .keyboardShortcut("s", modifiers: [.command])
-
             Button("Toggle Dashboard") {
                 withAnimation(.spring(response: 0.52, dampingFraction: 0.88)) {
                     appModel.toggleDashboard()

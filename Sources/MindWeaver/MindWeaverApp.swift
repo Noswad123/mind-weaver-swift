@@ -21,6 +21,14 @@ struct MindWeaverApp: App {
                 .environmentObject(appModel)
         }
         .commands {
+            CommandGroup(replacing: .saveItem) {
+                Button(appModel.sidebarVisibility == .detailOnly ? "Show Sidebar" : "Hide Sidebar") {
+                    appModel.toggleSidebar()
+                }
+                .keyboardShortcut("s", modifiers: [.command])
+                .disabled(appModel.showDashboard)
+            }
+
             CommandGroup(after: .newItem) {
                 Button("Refresh Notes") {
                     Task { await appModel.refreshNotes() }

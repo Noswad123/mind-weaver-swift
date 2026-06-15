@@ -119,7 +119,6 @@ actor GraphLayoutEngine {
                 velocity = clampedVelocity(velocity, max: maxVelocity)
                 point.x += velocity.dx
                 point.y += velocity.dy
-                point = constrainedToCircularBounds(point, size: contentSize, padding: 120)
                 positions[node.id] = point
                 velocities[node.id] = velocity
             }
@@ -331,7 +330,7 @@ actor GraphLayoutEngine {
             let childDegree = topology.degree[nodeID, default: 0]
             let childGroupSize = topology.hubGroups[nodeID]?.count ?? 1
             let isChildHub = childDegree >= 4 || childGroupSize >= 5
-            let strength = isChildHub ? 0.010 : 0.016
+            let strength = isChildHub ? 0.006 : 0.010
             applyOrbitForce(
                 nodeID: nodeID,
                 point: point,
@@ -368,9 +367,9 @@ actor GraphLayoutEngine {
         let childDegree = Double(max(1, topology.degree[nodeID, default: 1]))
         let childGroupSize = Double(max(1, topology.hubGroups[nodeID]?.count ?? 1))
         let childIsHub = childDegree >= 4 || childGroupSize >= 5
-        let parentScale = 0.92 + sqrt(parentGroupSize) * 0.060 + log2(parentDegree + 1) * 0.10
-        let childHubScale = childIsHub ? min(2.2, sqrt(childGroupSize) * 0.14 + log2(childDegree + 1) * 0.22) : 0
-        return nodeSpacing * min(7.0, parentScale + childHubScale)
+        let parentScale = 0.88 + sqrt(parentGroupSize) * 0.050 + log2(parentDegree + 1) * 0.085
+        let childHubScale = childIsHub ? min(1.8, sqrt(childGroupSize) * 0.11 + log2(childDegree + 1) * 0.18) : 0
+        return nodeSpacing * min(5.8, parentScale + childHubScale)
     }
 
     private func applyOrbitForce(nodeID: String, point: GraphLayoutPoint, parentID: String, parent: GraphLayoutPoint, desiredRadius: Double, strength: Double, parentCounterScale: Double, forces: inout [String: LayoutVector]) {
@@ -404,8 +403,8 @@ actor GraphLayoutEngine {
             guard let hubPoint = positions[hubID] else { continue }
             let count = Double(members.count)
             let hubDegree = Double(max(1, topology.degree[hubID, default: 1]))
-            let desiredRadius = nodeSpacing * min(7.0, 1.05 + sqrt(count) * 0.18 + log2(hubDegree + 1) * 0.24)
-            let annulusStrength = min(0.030, 0.010 + sqrt(count) * 0.0014)
+            let desiredRadius = nodeSpacing * min(5.8, 1.00 + sqrt(count) * 0.14 + log2(hubDegree + 1) * 0.18)
+            let annulusStrength = min(0.020, 0.007 + sqrt(count) * 0.0010)
 
             for memberID in members where memberID != hubID {
                 guard let memberPoint = positions[memberID] else { continue }
@@ -485,7 +484,7 @@ actor GraphLayoutEngine {
     private func applyHubExternalRepulsion(hubID: String, members: [String], center: GraphLayoutPoint, desiredRadius: Double, topology: LayoutTopology, positions: [String: GraphLayoutPoint], forces: inout [String: LayoutVector]) {
         let memberSet = Set(members)
         let groupMass = sqrt(Double(members.count))
-        let repelRadius = desiredRadius + nodeSpacing * min(4.2, 1.9 + groupMass * 0.20)
+        let repelRadius = desiredRadius + nodeSpacing * min(3.4, 1.6 + groupMass * 0.16)
         for (nodeID, point) in positions where !memberSet.contains(nodeID) {
             guard !topology.adjacency[hubID, default: []].contains(nodeID) else { continue }
             var dx = point.x - center.x
@@ -499,7 +498,7 @@ actor GraphLayoutEngine {
                 distance = max(1, hypot(dx, dy))
             }
             let overlap = (repelRadius - distance) / repelRadius
-            let force = min(9.5, overlap * groupMass * 0.88)
+            let force = min(7.0, overlap * groupMass * 0.68)
             let ux = dx / distance
             let uy = dy / distance
             forces[nodeID, default: .zero].dx += ux * force
@@ -532,18 +531,6 @@ actor GraphLayoutEngine {
         return LayoutVector(dx: velocity.dx / magnitude * max, dy: velocity.dy / magnitude * max)
     }
 
-    private func constrainedToCircularBounds(_ point: GraphLayoutPoint, size: GraphLayoutSize, padding: Double) -> GraphLayoutPoint {
-        let center = GraphLayoutPoint(x: size.width / 2, y: size.height / 2)
-        let radius = max(80, min(size.width, size.height) / 2 - padding)
-        let dx = point.x - center.x
-        let dy = point.y - center.y
-        let distance = hypot(dx, dy)
-        guard distance > radius, distance > 0 else { return point }
-        return GraphLayoutPoint(
-            x: center.x + (dx / distance) * radius,
-            y: center.y + (dy / distance) * radius
-        )
-    }
 }
 
 private struct LayoutVector: Sendable {

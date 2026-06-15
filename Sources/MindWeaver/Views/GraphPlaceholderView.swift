@@ -54,19 +54,13 @@ struct GraphPlaceholderView: View {
             Divider()
 
             GeometryReader { geometry in
-                let contentSize = graphContentSize(viewport: geometry.size)
-                let centeredOffset = centeredContentOffset(viewport: geometry.size, contentSize: contentSize)
+                let worldSize = graphContentSize(viewport: geometry.size)
 
-                ZStack(alignment: .topLeading) {
-                    graphCanvas(size: contentSize)
-                    .frame(width: contentSize.width, height: contentSize.height)
-                    .scaleEffect(zoom, anchor: .topLeading)
-                    .offset(x: centeredOffset.width + panOffset.width, y: centeredOffset.height + panOffset.height)
-                }
+                graphCanvas(worldSize: worldSize)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
                 .contentShape(Rectangle())
-                .gesture(graphDragGesture(contentSize: contentSize, centeredOffset: centeredOffset))
+                .gesture(graphDragGesture(worldSize: worldSize))
                 .simultaneousGesture(magnificationGesture)
                 .onContinuousHover { phase in
                     switch phase {
@@ -91,7 +85,7 @@ struct GraphPlaceholderView: View {
                         .background(.regularMaterial, in: Capsule())
                         .padding()
                 }
-                .onAppear { updateViewportMetrics(viewport: geometry.size, content: contentSize) }
+                .onAppear { updateViewportMetrics(viewport: geometry.size, content: worldSize) }
                 .onChange(of: geometry.size) { newSize in
                     updateViewportMetrics(viewport: newSize, content: graphContentSize(viewport: newSize))
                 }
@@ -171,7 +165,7 @@ struct GraphPlaceholderView: View {
         .padding()
     }
 
-    private func graphDragGesture(contentSize: CGSize, centeredOffset: CGSize) -> some Gesture {
+    private func graphDragGesture(worldSize: CGSize) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 if isCommandPressed || isPanningGraph {
@@ -187,21 +181,15 @@ struct GraphPlaceholderView: View {
                     return
                 }
 
-                let startGraphPoint = graphPoint(
-                    from: value.startLocation,
-                    centeredOffset: centeredOffset
-                )
+                let startGraphPoint = graphPoint(from: value.startLocation)
                 if activeDragNodeID == nil,
-                   let nearest = nearestNode(to: startGraphPoint, in: contentSize, maxDistance: 90) {
+                   let nearest = nearestNode(to: startGraphPoint, in: worldSize, maxDistance: 90) {
                     activeDragNodeID = nearest.node.id
                 }
 
                 guard let activeDragNodeID else { return }
                 cancelGraphLayout()
-                let currentGraphPoint = graphPoint(
-                    from: value.location,
-                    centeredOffset: centeredOffset
-                )
+                let currentGraphPoint = graphPoint(from: value.location)
                 graphPositions[activeDragNodeID] = currentGraphPoint
             }
             .onEnded { value in
@@ -226,8 +214,8 @@ struct GraphPlaceholderView: View {
                 }
 
                 guard abs(value.translation.width) < 4, abs(value.translation.height) < 4 else { return }
-                let clickPoint = graphPoint(from: value.location, centeredOffset: centeredOffset)
-                if !selectNearestNode(to: clickPoint, in: contentSize) {
+                let clickPoint = graphPoint(from: value.location)
+                if !selectNearestNode(to: clickPoint, in: worldSize) {
                     appModel.clearSelection()
                 }
             }
@@ -257,23 +245,12 @@ struct GraphPlaceholderView: View {
         )
     }
 
-    private func centeredContentOffset(viewport: CGSize, contentSize: CGSize) -> CGSize {
-        CGSize(
-            width: (viewport.width - contentSize.width * zoom) / 2,
-            height: (viewport.height - contentSize.height * zoom) / 2
-        )
-    }
-
-    private func centeredContentOffset(viewport: CGSize, contentSize: CGSize, zoom: CGFloat) -> CGSize {
-        CGSize(
-            width: (viewport.width - contentSize.width * zoom) / 2,
-            height: (viewport.height - contentSize.height * zoom) / 2
-        )
-    }
-
-    private func graphCanvas(size: CGSize) -> some View {
+    private func graphCanvas(worldSize: CGSize) -> some View {
         Canvas { context, _ in
-            let points = nodePoints(in: size)
+            context.translateBy(x: panOffset.width, y: panOffset.height)
+            context.scaleBy(x: zoom, y: zoom)
+
+            let points = nodePoints(in: worldSize)
             let selectedNodeID = appModel.graphFocusedNodeID
             let connectedIDs = selectedNodeID.map { renderCache.adjacency[$0, default: []] } ?? []
             var normalEdgePath = Path()
@@ -283,9 +260,9 @@ struct GraphPlaceholderView: View {
                 guard let source = points[edge.source], let target = points[edge.target] else { continue }
                 let isSelectedEdge = selectedNodeID.map { edge.source == $0 || edge.target == $0 } ?? false
                 if isSelectedEdge {
-                    addCurvedEdge(from: source, to: target, in: size, selected: true, path: &selectedEdgePath)
+                    addCurvedEdge(from: source, to: target, in: worldSize, selected: true, path: &selectedEdgePath)
                 } else {
-                    addCurvedEdge(from: source, to: target, in: size, selected: false, path: &normalEdgePath)
+                    addCurvedEdge(from: source, to: target, in: worldSize, selected: false, path: &normalEdgePath)
                 }
             }
 
@@ -796,7 +773,8 @@ struct GraphPlaceholderView: View {
                 best = (node, distance)
             }
         }
-        guard let best, best.distance <= maxDistance else { return nil }
+        let worldMaxDistance = maxDistance / max(0.05, zoom)
+        guard let best, best.distance <= worldMaxDistance else { return nil }
         return best
     }
 
@@ -833,18 +811,16 @@ struct GraphPlaceholderView: View {
             return
         }
 
-        let oldCentered = centeredContentOffset(viewport: viewportSize, contentSize: currentContentSize, zoom: oldZoom)
-        let newCentered = centeredContentOffset(viewport: viewportSize, contentSize: currentContentSize, zoom: newZoom)
         let graphPoint = CGPoint(
-            x: (anchor.x - oldCentered.width - panOffset.width) / oldZoom,
-            y: (anchor.y - oldCentered.height - panOffset.height) / oldZoom
+            x: (anchor.x - panOffset.width) / oldZoom,
+            y: (anchor.y - panOffset.height) / oldZoom
         )
 
         zoom = newZoom
         baseZoom = newZoom
         panOffset = CGSize(
-            width: anchor.x - newCentered.width - (graphPoint.x * newZoom),
-            height: anchor.y - newCentered.height - (graphPoint.y * newZoom)
+            width: anchor.x - (graphPoint.x * newZoom),
+            height: anchor.y - (graphPoint.y * newZoom)
         )
         dragStartOffset = panOffset
     }
@@ -864,10 +840,9 @@ struct GraphPlaceholderView: View {
         zoom = fittedZoom
         baseZoom = fittedZoom
 
-        let centered = centeredContentOffset(viewport: viewportSize, contentSize: currentContentSize, zoom: fittedZoom)
         panOffset = CGSize(
-            width: viewportSize.width / 2 - centered.width - bounds.midX * fittedZoom,
-            height: viewportSize.height / 2 - centered.height - bounds.midY * fittedZoom
+            width: viewportSize.width / 2 - bounds.midX * fittedZoom,
+            height: viewportSize.height / 2 - bounds.midY * fittedZoom
         )
         dragStartOffset = panOffset
     }
@@ -947,10 +922,10 @@ struct GraphPlaceholderView: View {
         }
     }
 
-    private func graphPoint(from viewportPoint: CGPoint, centeredOffset: CGSize) -> CGPoint {
+    private func graphPoint(from viewportPoint: CGPoint) -> CGPoint {
         CGPoint(
-            x: (viewportPoint.x - centeredOffset.width - panOffset.width) / zoom,
-            y: (viewportPoint.y - centeredOffset.height - panOffset.height) / zoom
+            x: (viewportPoint.x - panOffset.width) / zoom,
+            y: (viewportPoint.y - panOffset.height) / zoom
         )
     }
 
