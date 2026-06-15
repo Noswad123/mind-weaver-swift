@@ -11,7 +11,7 @@ struct NoteDetailView: View {
 
                 Divider()
 
-                MarkdownPreview(markdown: note.content)
+                MarkdownPreview(note: note)
             } else {
                 emptyState
             }
@@ -52,13 +52,7 @@ struct NoteDetailView: View {
 
     private var emptyState: some View {
         VStack(spacing: 12) {
-            Image(systemName: "brain.head.profile")
-                .font(.system(size: 42))
-                .foregroundStyle(.secondary)
-
-            Text("Mind Weaver")
-                .font(.title2)
-                .bold()
+            AnimatedBrainLogo(isAnimating: appModel.isWorking, size: 96)
 
             Text("A native SwiftUI shell around the Go mw engine.")
                 .foregroundStyle(.secondary)
@@ -87,7 +81,11 @@ struct NoteDetailView: View {
 }
 
 struct MarkdownPreview: View {
-    var markdown: String
+    @EnvironmentObject private var appModel: AppModel
+
+    var note: MWNote
+
+    private var markdown: String { note.content }
 
     private var blocks: [MarkdownBlock] {
         MarkdownBlock.parse(markdown)
@@ -111,13 +109,22 @@ struct MarkdownPreview: View {
             }
         }
         .background(Color(nsColor: .textBackgroundColor))
+        .environment(\.openURL, OpenURLAction { url in
+            guard url.scheme == "mindweaver-note",
+                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let target = components.queryItems?.first(where: { $0.name == "target" })?.value else {
+                return .systemAction
+            }
+
+            return appModel.openNoteLink(target: target, from: note) ? .handled : .discarded
+        })
     }
 
     @ViewBuilder
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case .heading(let level, let text):
-            Text(text)
+            Text(attributedInlineText(text))
                 .font(font(forHeadingLevel: level))
                 .bold(level <= 3)
                 .textSelection(.enabled)
@@ -127,13 +134,13 @@ struct MarkdownPreview: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("•")
                     .foregroundStyle(.secondary)
-                Text(text)
+                Text(attributedInlineText(text))
                     .textSelection(.enabled)
             }
             .padding(.leading, CGFloat(level) * 18)
 
         case .paragraph(let text):
-            Text(text)
+            Text(attributedInlineText(text))
                 .font(.body)
                 .lineSpacing(4)
                 .textSelection(.enabled)
@@ -147,7 +154,7 @@ struct MarkdownPreview: View {
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
 
         case .quote(let text):
-            Text(text)
+            Text(attributedInlineText(text))
                 .italic()
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -167,6 +174,97 @@ struct MarkdownPreview: View {
         case 3: .title3
         default: .headline
         }
+    }
+
+    private func attributedInlineText(_ text: String) -> AttributedString {
+        MarkdownInline.parse(text).reduce(into: AttributedString()) { output, inline in
+            var piece = AttributedString(inline.label)
+            if let target = inline.target,
+               let url = inlineURL(target: target, isWikiLink: inline.isWikiLink) {
+                piece.link = url
+            }
+            output.append(piece)
+        }
+    }
+
+    private func inlineURL(target: String, isWikiLink: Bool) -> URL? {
+        if !isWikiLink,
+           let external = URL(string: target),
+           let scheme = external.scheme,
+           ["http", "https", "mailto", "tel"].contains(scheme.lowercased()) {
+            return external
+        }
+
+        var components = URLComponents()
+        components.scheme = "mindweaver-note"
+        components.host = "open"
+        components.queryItems = [URLQueryItem(name: "target", value: target)]
+        return components.url
+    }
+}
+
+private struct MarkdownInline: Hashable {
+    var label: String
+    var target: String?
+    var isWikiLink: Bool
+
+    static func text(_ value: String) -> MarkdownInline {
+        MarkdownInline(label: value, target: nil, isWikiLink: false)
+    }
+
+    static func link(label: String, target: String, isWikiLink: Bool) -> MarkdownInline {
+        MarkdownInline(label: label, target: target, isWikiLink: isWikiLink)
+    }
+
+    static func parse(_ text: String) -> [MarkdownInline] {
+        var output: [MarkdownInline] = []
+        var index = text.startIndex
+        var plainStart = index
+
+        func flushPlain(upTo end: String.Index) {
+            guard plainStart < end else { return }
+            output.append(.text(String(text[plainStart..<end])))
+        }
+
+        while index < text.endIndex {
+            if text[index...].hasPrefix("[["),
+               let close = text[index...].range(of: "]]") {
+                flushPlain(upTo: index)
+                let contentStart = text.index(index, offsetBy: 2)
+                let raw = String(text[contentStart..<close.lowerBound])
+                let parts = raw.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+                let target = String(parts.first ?? "")
+                let label = parts.count > 1 ? String(parts[1]) : target
+                output.append(.link(label: label.isEmpty ? target : label, target: target, isWikiLink: true))
+                index = close.upperBound
+                plainStart = index
+                continue
+            }
+
+            if text[index] == "[",
+               (index == text.startIndex || text[text.index(before: index)] != "!"),
+               let labelClose = text[index...].firstIndex(of: "]"),
+               labelClose < text.index(before: text.endIndex) {
+                let afterLabel = text.index(after: labelClose)
+                if text[afterLabel] == "(",
+                   let targetClose = text[afterLabel...].firstIndex(of: ")") {
+                    flushPlain(upTo: index)
+                    let labelStart = text.index(after: index)
+                    let targetStart = text.index(after: afterLabel)
+                    let label = String(text[labelStart..<labelClose])
+                    let target = String(text[targetStart..<targetClose])
+                    output.append(.link(label: label.isEmpty ? target : label, target: target, isWikiLink: false))
+                    index = text.index(after: targetClose)
+                    plainStart = index
+                    continue
+                }
+            }
+
+            index = text.index(after: index)
+        }
+
+        flushPlain(upTo: text.endIndex)
+        return output
     }
 }
 

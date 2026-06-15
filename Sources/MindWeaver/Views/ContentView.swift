@@ -17,6 +17,11 @@ struct ContentView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                AnimatedBrainLogo(isAnimating: appModel.isBusy, size: 56)
+                    .help(appModel.isBusy ? "Mind Weaver is working" : "Mind Weaver")
+            }
+
             ToolbarItemGroup {
                 if appModel.isWorking {
                     ProgressView()

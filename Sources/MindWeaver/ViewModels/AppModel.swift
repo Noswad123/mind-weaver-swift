@@ -24,6 +24,7 @@ final class AppModel: ObservableObject {
     @Published var statusMessage = "Ready"
     @Published var commandOutput = ""
     @Published var isWorking = false
+    @Published var isComputingGraphLayout = false
     @Published var notesDirectory: URL
     @Published var mwBinaryStatus: MWBinaryStatus = .unresolved
 
@@ -61,6 +62,10 @@ final class AppModel: ObservableObject {
                 || path.hasSuffix("/dashboard.md")
                 || note.title.localizedCaseInsensitiveCompare("dashboard") == .orderedSame
         }
+    }
+
+    var isBusy: Bool {
+        isWorking || isComputingGraphLayout
     }
 
     var visibleNotes: [MWNote] {
@@ -249,6 +254,10 @@ final class AppModel: ObservableObject {
         graphResetToken += 1
     }
 
+    func setGraphLayoutComputing(_ isComputing: Bool) {
+        isComputingGraphLayout = isComputing
+    }
+
     func focusGraphNode(_ nodeID: String?) {
         graphFocusedNodeID = nodeID
     }
@@ -339,6 +348,18 @@ final class AppModel: ObservableObject {
         select(noteID: todo.noteID)
     }
 
+    func enterGraphNode(_ node: MWGraphNode) {
+        guard let noteID = node.noteID else { return }
+        graphFocusedNodeID = node.id
+        sidebarMode = .notes
+        select(noteID: String(noteID))
+    }
+
+    func enterFocusedGraphNode() {
+        guard let graphFocusedNodeID, let node = graphNodesByID[graphFocusedNodeID] else { return }
+        enterGraphNode(node)
+    }
+
     func resolvedFileURL(for note: MWNote) -> URL? {
         guard let path = note.path, !path.isEmpty else { return nil }
 
@@ -353,6 +374,47 @@ final class AppModel: ObservableObject {
     func select(noteID: MWNote.ID?) {
         guard let noteID, let note = notes.first(where: { $0.id == noteID }) else { return }
         select(note)
+    }
+
+    @discardableResult
+    func openNoteLink(target rawTarget: String, from source: MWNote) -> Bool {
+        guard let note = resolveNoteLink(target: rawTarget, from: source) else { return false }
+        sidebarMode = .notes
+        select(note)
+        return true
+    }
+
+    func resolveNoteLink(target rawTarget: String, from source: MWNote) -> MWNote? {
+        let target = normalizedNoteLinkTarget(rawTarget)
+        guard !target.isEmpty, !isExternalLinkTarget(target) else { return nil }
+
+        let targetLower = target.lowercased()
+        let targetWithoutExtension = stripMarkdownExtension(targetLower)
+        let sourceDirectory = source.path.flatMap { path -> String? in
+            let directory = NSString(string: path).deletingLastPathComponent
+            return directory.isEmpty || directory == "." ? nil : directory
+        }
+        let relativePath = sourceDirectory.map { normalizePath("\($0)/\(target)") }
+        let normalizedTargetPath = normalizePath(target)
+
+        return notes.first { note in
+            let id = note.id.lowercased()
+            let uid = note.uid?.lowercased()
+            let title = note.title.lowercased()
+            let path = note.path.map(normalizePath)?.lowercased()
+            let basename = path.map { NSString(string: $0).lastPathComponent.lowercased() }
+            let basenameWithoutExtension = basename.map(stripMarkdownExtension)
+
+            return id == targetLower
+                || uid == targetLower
+                || title == targetLower
+                || path == normalizedTargetPath.lowercased()
+                || path == relativePath?.lowercased()
+                || path == "\(normalizedTargetPath).md".lowercased()
+                || path == relativePath.map { "\($0).md" }?.lowercased()
+                || basename == targetLower
+                || basenameWithoutExtension == targetWithoutExtension
+        }
     }
 
     func toggleDomain(_ domain: String) {
@@ -462,4 +524,51 @@ final class AppModel: ObservableObject {
 
 private extension String {
     var nilIfEmpty: String? { isEmpty ? nil : self }
+}
+
+private func normalizedNoteLinkTarget(_ rawTarget: String) -> String {
+    var target = rawTarget.trimmingCharacters(in: .whitespacesAndNewlines)
+    if target.hasPrefix("<"), target.hasSuffix(">") {
+        target = String(target.dropFirst().dropLast())
+    }
+    if let pipe = target.firstIndex(of: "|") {
+        target = String(target[..<pipe])
+    }
+    if let hash = target.firstIndex(of: "#") {
+        target = String(target[..<hash])
+    }
+    return target.removingPercentEncoding?.trimmingCharacters(in: .whitespacesAndNewlines) ?? target
+}
+
+private func isExternalLinkTarget(_ target: String) -> Bool {
+    let lower = target.lowercased()
+    return lower.hasPrefix("http://")
+        || lower.hasPrefix("https://")
+        || lower.hasPrefix("mailto:")
+        || lower.hasPrefix("tel:")
+        || lower.hasPrefix("file://")
+}
+
+private func normalizePath(_ path: String) -> String {
+    let expanded = path.hasPrefix("~") ? NSString(string: path).expandingTildeInPath : path
+    if expanded.hasPrefix("/") {
+        return URL(fileURLWithPath: expanded).standardized.path
+    }
+
+    var parts: [String] = []
+    for part in expanded.replacingOccurrences(of: "\\", with: "/").split(separator: "/", omittingEmptySubsequences: true) {
+        switch part {
+        case ".":
+            continue
+        case "..":
+            if !parts.isEmpty { parts.removeLast() }
+        default:
+            parts.append(String(part))
+        }
+    }
+    return parts.joined(separator: "/")
+}
+
+private func stripMarkdownExtension(_ value: String) -> String {
+    value.hasSuffix(".md") ? String(value.dropLast(3)) : value
 }

@@ -1011,6 +1011,7 @@ struct GraphPlaceholderView: View {
         let quickIterations = graph.nodes.count > 2_500 ? 6 : 8
         let refinedIterations = graph.nodes.count > 2_500 ? 32 : 44
 
+        appModel.setGraphLayoutComputing(true)
         layoutTask = Task {
             do {
                 let coarse = try await Self.layoutEngine.solve(
@@ -1051,9 +1052,15 @@ struct GraphPlaceholderView: View {
                     }
                 }
             } catch is CancellationError {
-                return
+                // Cancellation is expected when the graph changes or the user drags a node.
             } catch {
-                return
+                // Keep layout failures non-fatal for the UI.
+            }
+
+            await MainActor.run {
+                if generation == layoutGeneration {
+                    appModel.setGraphLayoutComputing(false)
+                }
             }
         }
     }
@@ -1061,6 +1068,7 @@ struct GraphPlaceholderView: View {
     private func cancelGraphLayout() {
         layoutTask?.cancel()
         layoutTask = nil
+        appModel.setGraphLayoutComputing(false)
     }
 
     private func spatialKey(_ point: CGPoint, cellSize: CGFloat) -> String {

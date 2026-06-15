@@ -294,6 +294,16 @@ struct NoteSidebarView: View {
             if let selected = selectedGraphNode {
                 Section("Selected") {
                     graphNodeRow(selected, role: .selected)
+
+                    Button {
+                        appModel.enterGraphNode(selected)
+                    } label: {
+                        Label("Enter Selected Node", systemImage: "arrow.right.circle.fill")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(selected.noteID == nil)
+                    .keyboardShortcut(.return, modifiers: [])
                 }
 
                 let connected = connectedGraphNodes(to: selected)
@@ -363,9 +373,13 @@ struct NoteSidebarView: View {
 
     private func graphNodeRow(_ node: MWGraphNode, role: GraphSidebarRole) -> some View {
         Button {
-            appModel.focusGraphNode(node.id)
-            if let noteID = node.noteID {
-                appModel.select(noteID: String(noteID))
+            if role == .selected {
+                appModel.enterGraphNode(node)
+            } else {
+                appModel.focusGraphNode(node.id)
+                if let noteID = node.noteID {
+                    appModel.select(noteID: String(noteID))
+                }
             }
         } label: {
             HStack(alignment: .top, spacing: 8) {

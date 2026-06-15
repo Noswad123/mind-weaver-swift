@@ -16,7 +16,7 @@ struct MindWeaverApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Mind Weaver") {
+        WindowGroup("") {
             ContentView()
                 .environmentObject(appModel)
         }
