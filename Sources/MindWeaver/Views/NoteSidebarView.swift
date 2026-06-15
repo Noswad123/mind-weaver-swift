@@ -36,6 +36,27 @@ struct NoteSidebarView: View {
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.spring(response: 0.52, dampingFraction: 0.88)) {
+                    appModel.toggleDashboard()
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    AnimatedBrainLogo(isAnimating: appModel.isBusy, size: 44)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Memory Loom")
+                            .font(.headline)
+                        Text(appModel.showDashboard ? "Dismiss dashboard" : "Open dashboard")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+                .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Explorer View")
                     .font(.headline)

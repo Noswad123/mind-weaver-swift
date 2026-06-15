@@ -124,7 +124,7 @@ struct MarkdownPreview: View {
     private func blockView(_ block: MarkdownBlock) -> some View {
         switch block {
         case .heading(let level, let text):
-            Text(attributedInlineText(text))
+            inlineText(text)
                 .font(font(forHeadingLevel: level))
                 .bold(level <= 3)
                 .textSelection(.enabled)
@@ -134,13 +134,13 @@ struct MarkdownPreview: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("•")
                     .foregroundStyle(.secondary)
-                Text(attributedInlineText(text))
+                inlineText(text)
                     .textSelection(.enabled)
             }
             .padding(.leading, CGFloat(level) * 18)
 
         case .paragraph(let text):
-            Text(attributedInlineText(text))
+            inlineText(text)
                 .font(.body)
                 .lineSpacing(4)
                 .textSelection(.enabled)
@@ -154,7 +154,7 @@ struct MarkdownPreview: View {
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
 
         case .quote(let text):
-            Text(attributedInlineText(text))
+            inlineText(text)
                 .italic()
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
@@ -176,15 +176,8 @@ struct MarkdownPreview: View {
         }
     }
 
-    private func attributedInlineText(_ text: String) -> AttributedString {
-        MarkdownInline.parse(text).reduce(into: AttributedString()) { output, inline in
-            var piece = AttributedString(inline.label)
-            if let target = inline.target,
-               let url = inlineURL(target: target, isWikiLink: inline.isWikiLink) {
-                piece.link = url
-            }
-            output.append(piece)
-        }
+    private func inlineText(_ text: String) -> MarkdownInlineText {
+        MarkdownInlineText(text: text, urlBuilder: inlineURL(target:isWikiLink:))
     }
 
     private func inlineURL(target: String, isWikiLink: Bool) -> URL? {
@@ -200,6 +193,52 @@ struct MarkdownPreview: View {
         components.host = "open"
         components.queryItems = [URLQueryItem(name: "target", value: target)]
         return components.url
+    }
+}
+
+private struct MarkdownInlineText: View {
+    var text: String
+    var urlBuilder: (String, Bool) -> URL?
+
+    @State private var pushedPointerCursor = false
+
+    private var inlines: [MarkdownInline] {
+        MarkdownInline.parse(text)
+    }
+
+    private var hasLinks: Bool {
+        inlines.contains { $0.target != nil }
+    }
+
+    private var attributedText: AttributedString {
+        inlines.reduce(into: AttributedString()) { output, inline in
+            var piece = AttributedString(inline.label)
+            if let target = inline.target,
+               let url = urlBuilder(target, inline.isWikiLink) {
+                piece.link = url
+            }
+            output.append(piece)
+        }
+    }
+
+    var body: some View {
+        Text(attributedText)
+            .onHover { hovering in
+                guard hasLinks else { return }
+                if hovering, !pushedPointerCursor {
+                    NSCursor.pointingHand.push()
+                    pushedPointerCursor = true
+                } else if !hovering, pushedPointerCursor {
+                    NSCursor.pop()
+                    pushedPointerCursor = false
+                }
+            }
+            .onDisappear {
+                if pushedPointerCursor {
+                    NSCursor.pop()
+                    pushedPointerCursor = false
+                }
+            }
     }
 }
 

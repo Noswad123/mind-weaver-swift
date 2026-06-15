@@ -147,7 +147,6 @@ struct TodoInspectorView: View {
                         Button("Save Todo") {
                             Task { await appModel.updateTodo(todo, patch: singlePatch(original: todo)) }
                         }
-                        .keyboardShortcut("s", modifiers: [.command])
                         .disabled(appModel.isWorking || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }

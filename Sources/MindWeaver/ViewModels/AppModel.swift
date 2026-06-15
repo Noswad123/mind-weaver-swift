@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -17,7 +18,10 @@ final class AppModel: ObservableObject {
     @Published var selectedNoteID: MWNote.ID?
     @Published var selectedTodoID: MWTodo.ID?
     @Published var selectedTodoIDs: Set<MWTodo.ID> = []
+    @Published var sidebarVisibility: NavigationSplitViewVisibility = .all
     @Published var sidebarMode: SidebarMode = .notes
+    @Published var showDashboard = true
+    @Published private(set) var lastViewedNoteIDs: [MWNote.ID] = []
     @Published var searchText = ""
     @Published var selectedDomains: Set<String> = []
     @Published var domainOptions: [String] = []
@@ -53,6 +57,29 @@ final class AppModel: ObservableObject {
 
     var selectedTodos: [MWTodo] {
         todos.filter { selectedTodoIDs.contains($0.id) }
+    }
+
+    var recentlyViewedNotes: [MWNote] {
+        let notesByID = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+        let recent = lastViewedNoteIDs.compactMap { notesByID[$0] }
+        if recent.count >= 5 { return Array(recent.prefix(5)) }
+
+        let recentIDs = Set(recent.map(\.id))
+        return Array((recent + notes.filter { !recentIDs.contains($0.id) }).prefix(5))
+    }
+
+    var highestPriorityTodos: [MWTodo] {
+        Array(todos
+            .filter { !$0.isDone }
+            .sorted { lhs, rhs in
+                let lhsRank = todoPriorityRank(lhs)
+                let rhsRank = todoPriorityRank(rhs)
+                if lhsRank != rhsRank { return lhsRank > rhsRank }
+                if lhs.displayEffectiveWeight != rhs.displayEffectiveWeight { return lhs.displayEffectiveWeight > rhs.displayEffectiveWeight }
+                if lhs.displayDue != rhs.displayDue { return dueSortKey(lhs.displayDue) < dueSortKey(rhs.displayDue) }
+                return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+            }
+            .prefix(5))
     }
 
     var dashboardNote: MWNote? {
@@ -131,6 +158,7 @@ final class AppModel: ObservableObject {
     func select(_ note: MWNote) {
         selectedNoteID = note.id
         selectedTodoID = nil
+        recordViewedNoteID(note.id)
 
         Task {
             await loadContent(for: note)
@@ -252,6 +280,22 @@ final class AppModel: ObservableObject {
 
     func resetGraphLayout() {
         graphResetToken += 1
+    }
+
+    func toggleDashboard() {
+        showDashboard.toggle()
+    }
+
+    func toggleSidebar() {
+        sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
+    }
+
+    func showDashboardView() {
+        showDashboard = true
+    }
+
+    func dismissDashboard() {
+        showDashboard = false
     }
 
     func setGraphLayoutComputing(_ isComputing: Bool) {
@@ -428,6 +472,36 @@ final class AppModel: ObservableObject {
     func clearFilters() {
         searchText = ""
         selectedDomains = []
+    }
+
+    private func recordViewedNoteID(_ noteID: MWNote.ID) {
+        lastViewedNoteIDs.removeAll { $0 == noteID }
+        lastViewedNoteIDs.insert(noteID, at: 0)
+        if lastViewedNoteIDs.count > 50 {
+            lastViewedNoteIDs = Array(lastViewedNoteIDs.prefix(50))
+        }
+    }
+
+    private func todoPriorityRank(_ todo: MWTodo) -> Int {
+        let priority = todo.displayPriority.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if priority.isEmpty { return 0 }
+
+        if priority == "urgent" || priority == "critical" { return 120 }
+        if priority == "high" { return 100 }
+        if priority == "medium" { return 60 }
+        if priority == "low" { return 20 }
+
+        if priority.hasPrefix("p"), let value = Int(priority.dropFirst()) {
+            return max(0, 110 - value * 10)
+        }
+        if let value = Int(priority) {
+            return max(0, 110 - value * 10)
+        }
+        return 10
+    }
+
+    private func dueSortKey(_ due: String) -> String {
+        due.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "9999-99-99" : due
     }
 
     private func loadDomainOptions(fallbackNotes: [MWNote]) async -> [String] {

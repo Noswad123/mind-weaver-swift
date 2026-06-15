@@ -14,7 +14,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "MindWeaver",
-            path: "Sources/MindWeaver"
+            path: "Sources/MindWeaver",
+            resources: [
+                .process("Resources")
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]
