@@ -63,6 +63,16 @@ struct SettingsView: View {
                         Task { await appModel.runDoctor() }
                     }
                 }
+
+                Text("Release installs expect Homebrew to provide `mw`; local development builds can still use `~/.local/bin/mw` or `~/go/bin/mw` as fallbacks.")
+                    .font(.caption)
+                    .foregroundStyle(MWTheme.textMuted)
+            }
+
+            Section("Dependency Readiness") {
+                ForEach(appModel.externalToolStatuses) { tool in
+                    dependencyRow(tool)
+                }
             }
         }
         .formStyle(.grouped)
@@ -152,5 +162,37 @@ struct SettingsView: View {
                 .padding(.vertical, 3)
                 .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
         }
+    }
+
+    private func dependencyRow(_ tool: ExternalToolStatus) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(tool.name, systemImage: tool.isAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(tool.isAvailable ? MWTheme.greenSync : (tool.requirement == .required ? MWTheme.danger : MWTheme.emberHot))
+
+                Text(tool.requirement.rawValue)
+                    .font(.caption)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background((tool.requirement == .required ? MWTheme.danger : MWTheme.frost).opacity(0.16), in: Capsule())
+
+                Spacer()
+
+                Text(tool.isAvailable ? "Found" : "Missing")
+                    .font(.caption)
+                    .foregroundStyle(tool.isAvailable ? MWTheme.greenSync : MWTheme.textMuted)
+            }
+
+            Text(tool.executablePath ?? tool.installCommand)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .foregroundStyle(tool.isAvailable ? MWTheme.textMuted : MWTheme.frostSoft)
+
+            Text(tool.note)
+                .font(.caption2)
+                .foregroundStyle(MWTheme.textMuted)
+        }
+        .padding(.vertical, 4)
     }
 }

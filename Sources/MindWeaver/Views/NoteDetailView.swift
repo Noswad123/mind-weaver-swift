@@ -39,8 +39,8 @@ struct NoteDetailView: View {
 
             Spacer()
 
-            Button("Open in Neovim") {
-                openInNeovim(note)
+            Button("Open Externally") {
+                appModel.openExternally(note)
             }
             .disabled(appModel.resolvedFileURL(for: note) == nil)
 
@@ -67,19 +67,6 @@ struct NoteDetailView: View {
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
-    private func openInNeovim(_ note: MWNote) {
-        guard let fileURL = appModel.resolvedFileURL(for: note) else { return }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["wisp", "nvim", fileURL.path]
-
-        do {
-            try process.run()
-        } catch {
-            NSSound.beep()
-        }
-    }
 }
 
 struct MarkdownPreview: View {

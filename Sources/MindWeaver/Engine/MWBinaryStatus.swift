@@ -3,6 +3,7 @@ import Foundation
 struct MWBinaryStatus: Hashable, Sendable {
     enum Source: String, Sendable {
         case bundled = "Bundled app resource"
+        case homebrew = "Homebrew"
         case localBin = "~/.local/bin"
         case goBin = "~/go/bin"
         case path = "PATH"

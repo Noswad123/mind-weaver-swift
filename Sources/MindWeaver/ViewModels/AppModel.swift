@@ -32,6 +32,7 @@ final class AppModel: ObservableObject {
     @Published var isComputingGraphLayout = false
     @Published var notesDirectory: URL
     @Published var mwBinaryStatus: MWBinaryStatus = .unresolved
+    @Published var externalToolStatuses: [ExternalToolStatus] = ExternalToolCatalog.statuses()
 
     private let noteFetchLimit = 5_000
     private let engine: any MindWeaverEngine
@@ -187,9 +188,11 @@ final class AppModel: ObservableObject {
     func refreshNotes() async {
         await runWork("Loading notes") {
             mwBinaryStatus = await engine.binaryStatus()
+            externalToolStatuses = ExternalToolCatalog.statuses()
             let loaded = try await engine.listNotes(limit: noteFetchLimit, search: nil)
             let loadedTodos = try await engine.listTodos()
             mwBinaryStatus = await engine.binaryStatus()
+            externalToolStatuses = ExternalToolCatalog.statuses()
             notes = loaded
             todos = loadedTodos
             selectedTodoIDs = selectedTodoIDs.intersection(Set(loadedTodos.map(\.id)))
@@ -232,6 +235,22 @@ final class AppModel: ObservableObject {
 
     func refreshBinaryStatus() async {
         mwBinaryStatus = await engine.binaryStatus()
+        externalToolStatuses = ExternalToolCatalog.statuses()
+    }
+
+    func openExternally(_ note: MWNote) {
+        guard let fileURL = resolvedFileURL(for: note) else {
+            statusMessage = "Cannot resolve note file"
+            commandOutput = "No local file path is available for \(note.title)."
+            return
+        }
+
+        Task {
+            await runCommand("Opening external editor") {
+                try await ExternalEditorLauncher.open(fileURL)
+            }
+            await refreshBinaryStatus()
+        }
     }
 
     func rebuildMWBinary() async {
