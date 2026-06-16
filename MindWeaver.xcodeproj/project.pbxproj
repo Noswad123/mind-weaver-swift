@@ -22,6 +22,8 @@
 		1C3EAEDC2FE0DAB8003CEB24 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */; };
 		1C3EAEF02FE0F010003CEB24 /* MWTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */; };
 		1C3EAEF22FE0F650003CEB24 /* WindowChromeConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */; };
+		1C3EAEF42FE10010003CEB24 /* ToolResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF52FE10010003CEB24 /* ToolResolver.swift */; };
+		1C3EAEF62FE10010003CEB24 /* ExternalEditorLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF72FE10010003CEB24 /* ExternalEditorLauncher.swift */; };
 		1C3EAEDD2FE0DABF003CEB24 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC02FE0D901003CEB24 /* AppModel.swift */; };
 		1C3EAEDE2FE0DACB003CEB24 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC52FE0D901003CEB24 /* DashboardView.swift */; };
 		1C3EAEDF2FE0DACB003CEB24 /* GraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */; };
@@ -58,6 +60,8 @@
 		1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWTheme.swift; sourceTree = "<group>"; };
 		1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChromeConfigurator.swift; sourceTree = "<group>"; };
+		1C3EAEF52FE10010003CEB24 /* ToolResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolResolver.swift; sourceTree = "<group>"; };
+		1C3EAEF72FE10010003CEB24 /* ExternalEditorLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExternalEditorLauncher.swift; sourceTree = "<group>"; };
 		1C3EAEC02FE0D901003CEB24 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		1C3EAEC22FE0D901003CEB24 /* AnimatedBrainLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedBrainLogo.swift; sourceTree = "<group>"; };
 		1C3EAEC32FE0D901003CEB24 /* CommandOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandOutputView.swift; sourceTree = "<group>"; };
@@ -129,10 +133,12 @@
 			isa = PBXGroup;
 			children = (
 				1C3EAEBB2FE0D901003CEB24 /* DomainColorPalette.swift */,
+				1C3EAEF72FE10010003CEB24 /* ExternalEditorLauncher.swift */,
 				1C3EAEBC2FE0D901003CEB24 /* FlexibleCoding.swift */,
 				1C3EAEBD2FE0D901003CEB24 /* MindWeaverPaths.swift */,
 				1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */,
 				1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */,
+				1C3EAEF52FE10010003CEB24 /* ToolResolver.swift */,
 				1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */,
 			);
 			path = Support;
@@ -294,8 +300,10 @@
 				1C3EAEE82FE0DACB003CEB24 /* AnimatedBrainLogo.swift in Sources */,
 				1C3EAEDA2FE0DAB8003CEB24 /* MindWeaverPaths.swift in Sources */,
 				1C3EAEDB2FE0DAB8003CEB24 /* DomainColorPalette.swift in Sources */,
+				1C3EAEF62FE10010003CEB24 /* ExternalEditorLauncher.swift in Sources */,
 				1C3EAEF02FE0F010003CEB24 /* MWTheme.swift in Sources */,
 				1C3EAEDC2FE0DAB8003CEB24 /* SettingsWindowController.swift in Sources */,
+				1C3EAEF42FE10010003CEB24 /* ToolResolver.swift in Sources */,
 				1C3EAEF22FE0F650003CEB24 /* WindowChromeConfigurator.swift in Sources */,
 				1C3EAED22FE0DA9D003CEB24 /* MWBinaryStatus.swift in Sources */,
 				1C3EAED32FE0DA9D003CEB24 /* MWCLIEngine.swift in Sources */,
@@ -359,7 +367,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -417,7 +425,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -444,7 +452,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "jamal-arcana.MindWeaver";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -476,7 +484,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "jamal-arcana.MindWeaver";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;

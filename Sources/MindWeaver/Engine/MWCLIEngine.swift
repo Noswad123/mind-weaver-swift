@@ -171,7 +171,7 @@ actor MWCLIEngine: MindWeaverEngine {
 
             process.executableURL = executableURL
             process.arguments = arguments
-            process.environment = MWBinaryResolver.processEnvironment()
+            process.environment = ToolResolver.processEnvironment()
             process.standardOutput = stdout
             process.standardError = stderr
 
@@ -209,9 +209,25 @@ private enum MWBinaryResolver {
         URL(fileURLWithPath: NSString(string: "~/go/bin/mw").expandingTildeInPath)
     }
 
+    static var homebrewAppleSiliconBinaryURL: URL {
+        URL(fileURLWithPath: ToolResolver.homebrewAppleSiliconBin).appendingPathComponent("mw")
+    }
+
+    static var homebrewIntelBinaryURL: URL {
+        URL(fileURLWithPath: ToolResolver.homebrewIntelBin).appendingPathComponent("mw")
+    }
+
     static func resolve() -> MWBinaryResolution {
         if let bundled = Bundle.main.url(forResource: "mw", withExtension: nil), isExecutable(bundled) {
             return resolution(url: bundled, source: .bundled)
+        }
+
+        if isExecutable(homebrewAppleSiliconBinaryURL) {
+            return resolution(url: homebrewAppleSiliconBinaryURL, source: .homebrew)
+        }
+
+        if isExecutable(homebrewIntelBinaryURL) {
+            return resolution(url: homebrewIntelBinaryURL, source: .homebrew)
         }
 
         if isExecutable(localBinaryURL) {
@@ -234,18 +250,7 @@ private enum MWBinaryResolver {
     }
 
     static func processEnvironment() -> [String: String] {
-        var env = ProcessInfo.processInfo.environment
-        let additions = [
-            NSString(string: "~/.local/bin").expandingTildeInPath,
-            NSString(string: "~/go/bin").expandingTildeInPath,
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "/usr/bin",
-            "/bin",
-        ]
-        let existing = env["PATH"] ?? ""
-        env["PATH"] = (additions + [existing]).filter { !$0.isEmpty }.joined(separator: ":")
-        return env
+        ToolResolver.processEnvironment()
     }
 
     private static func resolution(url: URL, source: MWBinaryStatus.Source) -> MWBinaryResolution {
@@ -262,17 +267,10 @@ private enum MWBinaryResolver {
     }
 
     private static func isExecutable(_ url: URL) -> Bool {
-        FileManager.default.isExecutableFile(atPath: url.path)
+        ToolResolver.isExecutable(url)
     }
 
     private static func findOnPath(_ executableName: String) -> URL? {
-        let path = processEnvironment()["PATH"] ?? ""
-        for directory in path.split(separator: ":").map(String.init) {
-            let candidate = URL(fileURLWithPath: directory).appendingPathComponent(executableName)
-            if isExecutable(candidate) {
-                return candidate
-            }
-        }
-        return nil
+        ToolResolver.resolve(executableName)
     }
 }
