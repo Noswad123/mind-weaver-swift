@@ -19,6 +19,8 @@ struct MindWeaverApp: App {
         WindowGroup("") {
             ContentView()
                 .environmentObject(appModel)
+                .preferredColorScheme(.dark)
+                .tint(MWTheme.emberHot)
         }
         .commands {
             CommandGroup(replacing: .saveItem) {

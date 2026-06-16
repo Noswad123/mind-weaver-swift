@@ -65,32 +65,42 @@ struct DashboardView: View {
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                 } else {
-                    Color(red: 0.05, green: 0.05, blue: 0.11)
+                    MWTheme.bgVoid
                 }
             }
             .ignoresSafeArea()
 
             LinearGradient(
                 colors: [
-                    Color.black.opacity(0.62),
-                    Color(red: 0.04, green: 0.05, blue: 0.11).opacity(0.80),
-                    Color(red: 0.20, green: 0.10, blue: 0.26).opacity(0.62),
+                    MWTheme.bgVoid.opacity(0.50),
+                    MWTheme.bgPanel.opacity(0.74),
+                    MWTheme.pinkSignal.opacity(0.16),
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+
+            MWTheme.appBackground.opacity(0.42)
         }
         .ignoresSafeArea()
     }
 
     private var mindWeaverImage: NSImage? {
-        guard let url = Bundle.module.url(forResource: "mind-weaver", withExtension: "png") else { return nil }
+        guard let url = resourceBundle.url(forResource: "mind-weaver", withExtension: "png") else { return nil }
         return NSImage(contentsOf: url)
+    }
+
+    private var resourceBundle: Bundle {
+        #if SWIFT_PACKAGE
+        Bundle.module
+        #else
+        Bundle.main
+        #endif
     }
 
     private var centerLoom: some View {
         VStack(spacing: 0) {
-            Image("mind-weaver", bundle: .module)
+            Image("mind-weaver", bundle: resourceBundle)
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: 260, maxHeight: 360)
@@ -104,7 +114,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label(title, systemImage: systemImage)
                 .font(.headline)
-                .foregroundStyle(.primary)
+                .foregroundStyle(MWTheme.emberHot)
 
             VStack(alignment: .leading, spacing: 8) {
                 content()
@@ -112,11 +122,7 @@ struct DashboardView: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-        }
+        .mwPanel(cornerRadius: 18)
     }
 
     private func dashboardNoteRow(_ note: MWNote) -> some View {
@@ -126,12 +132,12 @@ struct DashboardView: View {
                 .lineLimit(1)
             Text(note.displayPath)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.textMuted)
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+        .mwPanel(cornerRadius: 10)
     }
 
     private func dashboardTodoRow(_ todo: MWTodo) -> some View {
@@ -146,23 +152,23 @@ struct DashboardView: View {
                         .bold()
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(Color.orange.opacity(0.22), in: Capsule())
+                        .background(MWTheme.ember.opacity(0.22), in: Capsule())
                 }
                 Text(todo.noteTitle ?? todo.path ?? "Task index")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
                     .lineLimit(1)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(Color.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 10))
+        .mwPanel(cornerRadius: 10)
     }
 
     private func emptyText(_ value: String) -> some View {
         Text(value)
             .font(.callout)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(MWTheme.textMuted)
             .frame(maxWidth: .infinity, minHeight: 88, alignment: .center)
     }
 }

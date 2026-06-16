@@ -98,6 +98,25 @@ To open the package in Xcode:
 open Package.swift
 ```
 
+## App icon
+
+For the Xcode macOS app target, generate the app icon from a square 1024×1024
+PNG source image:
+
+```bash
+scripts/generate-macos-appicon.sh path/to/brain-mage-hat-1024.png
+```
+
+The script writes the required icon sizes and `Contents.json` to:
+
+```text
+MindWeaver/MindWeaver/Assets.xcassets/AppIcon.appiconset
+```
+
+Suggested source artwork: a stylized luminous brain wearing a purple mage hat,
+with subtle golden memory-thread or loom glow, no text, centered on a dark
+indigo background.
+
 ## Development workflow
 
 There is no React-style hot reload. For a simple watch/restart loop, install

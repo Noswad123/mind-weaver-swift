@@ -72,7 +72,7 @@ struct GraphPlaceholderView: View {
                 }
                 .background(
                     LinearGradient(
-                        colors: [Color(nsColor: .windowBackgroundColor), Color.accentColor.opacity(0.06)],
+                        colors: [MWTheme.bgVoid, MWTheme.bgPanel2, MWTheme.frost.opacity(0.08)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
@@ -80,9 +80,12 @@ struct GraphPlaceholderView: View {
                 .overlay(alignment: .bottomLeading) {
                     Text(isPanningGraph ? "⌘-dragging to pan" : "⌘-drag to pan • ⌘ scroll to zoom")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MWTheme.frostSoft)
                         .padding(8)
-                        .background(.regularMaterial, in: Capsule())
+                        .background(MWTheme.bgPanel.opacity(0.82), in: Capsule())
+                        .overlay {
+                            Capsule().stroke(MWTheme.frostSoft.opacity(0.22), lineWidth: 1)
+                        }
                         .padding()
                 }
                 .onAppear { updateViewportMetrics(viewport: geometry.size, content: worldSize) }
@@ -100,6 +103,7 @@ struct GraphPlaceholderView: View {
             Divider()
             CommandOutputView()
         }
+        .background { MWTheme.appBackground }
         .task {
             if appModel.graph.nodes.isEmpty {
                 await appModel.refreshGraph()
@@ -136,10 +140,11 @@ struct GraphPlaceholderView: View {
                 Text("All Notes")
                     .font(.title2)
                     .bold()
+                    .foregroundStyle(MWTheme.emberHot)
 
                 Text("Links between notes. Search filters seed the graph; selected domains filter visible nodes.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
             }
 
             Spacer()
@@ -160,7 +165,8 @@ struct GraphPlaceholderView: View {
                 .font(.caption)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color.secondary.opacity(0.12), in: Capsule())
+                .background(MWTheme.frost.opacity(0.12), in: Capsule())
+                .overlay { Capsule().stroke(MWTheme.frostSoft.opacity(0.22), lineWidth: 1) }
         }
         .padding()
     }
@@ -779,22 +785,22 @@ struct GraphPlaceholderView: View {
     }
 
     private func nodeColor(_ node: MWGraphNode, isSelected: Bool, isConnectedToSelection: Bool, hasSelection: Bool) -> Color {
-        if isSelected { return Color(red: 1.0, green: 0.72, blue: 0.18) }
+        if isSelected { return MWTheme.emberHot }
         if hasSelection {
-            if isConnectedToSelection { return Color(red: 0.18, green: 0.88, blue: 0.95) }
-            return Color(nsColor: .systemGray).opacity(0.48)
+            if isConnectedToSelection { return MWTheme.frostSoft }
+            return MWTheme.textDim.opacity(0.48)
         }
-        if node.unknown == true || node.label == "unknown" { return .red.opacity(0.78) }
+        if node.unknown == true || node.label == "unknown" { return MWTheme.danger.opacity(0.78) }
         if let domain = appModel.dominantGraphDomain(for: node) {
             return DomainColorPalette.color(for: domain).opacity(node.matched == true ? 0.96 : 0.82)
         }
-        if node.matched == true { return Color(red: 0.82, green: 0.48, blue: 0.18) }
-        return Color(red: 0.34, green: 0.52, blue: 0.72)
+        if node.matched == true { return MWTheme.ember }
+        return MWTheme.frost.opacity(0.72)
     }
 
     private func labelColor(isSelected: Bool, isConnectedToSelection: Bool, hasSelection: Bool) -> Color {
-        if isSelected || isConnectedToSelection { return .primary }
-        return hasSelection ? .secondary.opacity(0.60) : .primary.opacity(0.86)
+        if isSelected || isConnectedToSelection { return MWTheme.text }
+        return hasSelection ? MWTheme.textDim.opacity(0.75) : MWTheme.text.opacity(0.86)
     }
 
     private func setZoom(_ value: CGFloat) {

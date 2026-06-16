@@ -22,15 +22,17 @@ struct NoteSidebarView: View {
                 Text("\(appModel.visibleNotes.count)/\(appModel.notes.count) notes • \(appModel.visibleTodos.count)/\(appModel.todos.count) todos")
                     .font(.caption)
                     .bold()
+                    .foregroundStyle(MWTheme.frostSoft)
 
                 Text(appModel.statusMessage)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .bottom])
         }
+        .background { MWTheme.appBackground }
         .navigationSplitViewColumnWidth(min: 280, ideal: 340)
     }
 
@@ -39,6 +41,7 @@ struct NoteSidebarView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Explorer View")
                     .font(.headline)
+                    .foregroundStyle(MWTheme.emberHot)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                     ForEach(SidebarMode.allCases) { mode in
@@ -67,7 +70,7 @@ struct NoteSidebarView: View {
                         Text("Domains")
                             .font(.caption)
                             .bold()
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MWTheme.frostSoft)
 
                         ScrollView {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)], alignment: .leading, spacing: 6) {
@@ -93,7 +96,7 @@ struct NoteSidebarView: View {
                         if !appModel.selectedDomains.isEmpty {
                             Text(appModel.sidebarMode == .graph ? "Graph nodes matching any selected domain." : "Matching notes that include all selected domains.")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MWTheme.textMuted)
                         }
                     }
 
@@ -113,7 +116,7 @@ struct NoteSidebarView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Force \(appModel.graphForceStrength, specifier: "%.1f")")
                                 .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(MWTheme.textMuted)
                             Slider(value: $appModel.graphForceStrength, in: 0.2...2.0)
                         }
 
@@ -128,19 +131,22 @@ struct NoteSidebarView: View {
 
                         Text("Rendered \(appModel.visibleGraph.nodes.count) nodes • \(appModel.visibleGraph.edges.count) edges")
                             .font(.caption2)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MWTheme.textMuted)
                     }
                     .padding(.top, 8)
                 }
             }
         }
         .padding([.top, .horizontal])
+        .mwPanel(cornerRadius: 18)
+        .padding(.horizontal, 8)
     }
 
     private var notesList: some View {
         List(appModel.visibleNotes) { note in
             noteRow(note)
         }
+        .mwScrollBackground()
     }
 
     private var todosList: some View {
@@ -167,7 +173,7 @@ struct NoteSidebarView: View {
                     .padding(.vertical, 3)
                 }
                 .buttonStyle(.plain)
-                .listRowBackground(appModel.selectedNoteID == dashboard.id ? Color.accentColor.opacity(0.16) : Color.clear)
+                .listRowBackground(rowBackground(isSelected: appModel.selectedNoteID == dashboard.id))
             }
 
             ForEach(appModel.visibleTodos) { todo in
@@ -218,9 +224,10 @@ struct NoteSidebarView: View {
                     .buttonStyle(.plain)
                 }
                 .padding(.vertical, 3)
-                .listRowBackground(appModel.selectedTodoID == todo.id ? Color.accentColor.opacity(0.16) : Color.clear)
+                .listRowBackground(rowBackground(isSelected: appModel.selectedTodoID == todo.id))
             }
         }
+        .mwScrollBackground()
     }
 
     private func todoMetadataSummary(_ todo: MWTodo) -> some View {
@@ -281,6 +288,7 @@ struct NoteSidebarView: View {
                 .disabled(node.noteID == nil)
             }
         }
+        .mwScrollBackground()
     }
 
     private var graphExplorer: some View {
@@ -331,6 +339,7 @@ struct NoteSidebarView: View {
                 }
             }
         }
+        .mwScrollBackground()
     }
 
     private enum GraphSidebarRole {
@@ -412,7 +421,7 @@ struct NoteSidebarView: View {
         }
         .buttonStyle(.plain)
         .disabled(node.noteID == nil)
-        .listRowBackground(role == .selected ? Color.yellow.opacity(0.18) : Color.clear)
+        .listRowBackground(rowBackground(isSelected: role == .selected))
     }
 
     private func graphNodeIcon(_ role: GraphSidebarRole) -> String {
@@ -457,7 +466,7 @@ struct NoteSidebarView: View {
             .padding(.vertical, 3)
         }
         .buttonStyle(.plain)
-        .listRowBackground(appModel.selectedNoteID == note.id ? Color.accentColor.opacity(0.16) : Color.clear)
+        .listRowBackground(rowBackground(isSelected: appModel.selectedNoteID == note.id))
     }
 
     private func domainBackground(_ domain: String) -> Color {
@@ -469,10 +478,20 @@ struct NoteSidebarView: View {
     }
 
     private func domainForeground(_ domain: String) -> Color {
-        appModel.selectedDomains.contains(domain) ? .primary : .secondary
+        appModel.selectedDomains.contains(domain) ? MWTheme.text : MWTheme.textMuted
     }
 
     private func explorerModeBackground(_ mode: SidebarMode) -> some ShapeStyle {
-        appModel.sidebarMode == mode ? Color.accentColor.opacity(0.20) : Color.secondary.opacity(0.10)
+        appModel.sidebarMode == mode ? MWTheme.selectedFill : MWTheme.coldFill
+    }
+
+    private func rowBackground(isSelected: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(isSelected ? MWTheme.selectedFill : AnyShapeStyle(MWTheme.bgVoid.opacity(0.15)))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(isSelected ? MWTheme.emberHot.opacity(0.42) : MWTheme.frostSoft.opacity(0.08), lineWidth: 1)
+            }
+            .padding(.vertical, 2)
     }
 }

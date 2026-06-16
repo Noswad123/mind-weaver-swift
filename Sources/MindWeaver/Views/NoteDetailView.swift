@@ -20,6 +20,7 @@ struct NoteDetailView: View {
 
             CommandOutputView()
         }
+        .background { MWTheme.appBackground }
     }
 
     private func noteHeader(_ note: MWNote) -> some View {
@@ -28,10 +29,11 @@ struct NoteDetailView: View {
                 Text(note.title)
                     .font(.title2)
                     .bold()
+                    .foregroundStyle(MWTheme.emberHot)
 
                 Text(note.displayPath)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
                     .textSelection(.enabled)
             }
 
@@ -55,7 +57,7 @@ struct NoteDetailView: View {
             AnimatedBrainLogo(isAnimating: appModel.isWorking, size: 96)
 
             Text("A native SwiftUI shell around the Go mw engine.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.textMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -95,7 +97,7 @@ struct MarkdownPreview: View {
         ScrollView {
             if markdown.isEmpty {
                 Text("Markdown preview will appear here when mw returns note content.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
             } else {
@@ -108,7 +110,20 @@ struct MarkdownPreview: View {
                 .padding(24)
             }
         }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background {
+            ZStack {
+                MWTheme.appBackground
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(MWTheme.panelFill)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(MWTheme.emberHot.opacity(0.28), lineWidth: 1)
+                    }
+                    .padding(12)
+            }
+        }
+        .foregroundStyle(MWTheme.text)
+        .tint(MWTheme.frostSoft)
         .environment(\.openURL, OpenURLAction { url in
             guard url.scheme == "mindweaver-note",
                   let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -127,13 +142,14 @@ struct MarkdownPreview: View {
             inlineText(text)
                 .font(font(forHeadingLevel: level))
                 .bold(level <= 3)
+                .foregroundStyle(MWTheme.emberHot)
                 .textSelection(.enabled)
                 .padding(.top, level == 1 ? 8 : 4)
 
         case .bullet(let level, let text):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("•")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.frostSoft)
                 inlineText(text)
                     .textSelection(.enabled)
             }
@@ -152,16 +168,20 @@ struct MarkdownPreview: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(MWTheme.frostSoft.opacity(0.20), lineWidth: 1)
+                }
 
         case .quote(let text):
             inlineText(text)
                 .italic()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.textMuted)
                 .textSelection(.enabled)
                 .padding(.leading, 12)
                 .overlay(alignment: .leading) {
                     Rectangle()
-                        .fill(Color.secondary.opacity(0.35))
+                        .fill(MWTheme.emberHot.opacity(0.45))
                         .frame(width: 3)
                 }
         }

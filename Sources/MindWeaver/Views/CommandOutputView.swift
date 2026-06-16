@@ -8,6 +8,7 @@ struct CommandOutputView: View {
             ScrollView {
                 Text(appModel.commandOutput.isEmpty ? "No command output yet." : appModel.commandOutput)
                     .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(MWTheme.textMuted)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 6)
@@ -16,8 +17,9 @@ struct CommandOutputView: View {
         } label: {
             Text(appModel.statusMessage)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.frostSoft)
         }
         .padding(8)
+        .background(MWTheme.bgPanel.opacity(0.72))
     }
 }

@@ -6,6 +6,32 @@ struct ContentView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            MWTheme.appBackground
+
+            themedShell
+
+            if appModel.showDashboard {
+                DashboardView()
+                    .environmentObject(appModel)
+                    .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .move(edge: .top).combined(with: .opacity)))
+                    .zIndex(10)
+            }
+
+            hiddenKeyboardShortcuts
+        }
+        .foregroundStyle(MWTheme.text)
+        .background { MWTheme.appBackground }
+        .background(WindowChromeConfigurator().frame(width: 0, height: 0))
+        .toolbar(.hidden, for: .windowToolbar)
+        .frame(minWidth: 1_000, minHeight: 680)
+    }
+
+    private var themedShell: some View {
+        VStack(spacing: 0) {
+            if !appModel.showDashboard {
+                appTopBar
+            }
+
             NavigationSplitView(columnVisibility: $appModel.sidebarVisibility) {
                 NoteSidebarView()
             } detail: {
@@ -17,33 +43,18 @@ struct ContentView: View {
                     NoteDetailView()
                 }
             }
-
-            if appModel.showDashboard {
-                DashboardView()
-                    .environmentObject(appModel)
-                    .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .move(edge: .top).combined(with: .opacity)))
-                    .zIndex(10)
-            }
-
-            hiddenKeyboardShortcuts
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Button {
-                    withAnimation(.spring(response: 0.52, dampingFraction: 0.88)) {
-                        appModel.toggleDashboard()
-                    }
-                } label: {
-                    AnimatedBrainLogo(isAnimating: appModel.isBusy, size: 56)
-                }
-                .buttonStyle(.plain)
-                .help(appModel.showDashboard ? "Dismiss Dashboard" : "Open Dashboard")
-            }
+    }
 
-            ToolbarItemGroup {
+    private var appTopBar: some View {
+        ZStack {
+            HStack(spacing: 10) {
+                Spacer()
+
                 if appModel.isWorking {
                     ProgressView()
                         .controlSize(.small)
+                        .tint(MWTheme.frostSoft)
                 }
 
                 Button("Sync") {
@@ -53,9 +64,7 @@ struct ContentView: View {
                 Button("Validate") {
                     Task { await appModel.validateNotes() }
                 }
-            }
 
-            ToolbarItem(placement: .primaryAction) {
                 Button {
                     openSettings()
                 } label: {
@@ -63,9 +72,35 @@ struct ContentView: View {
                 }
                 .help("Open Settings")
             }
+
+            Button {
+                withAnimation(.spring(response: 0.52, dampingFraction: 0.88)) {
+                    appModel.toggleDashboard()
+                }
+            } label: {
+                AnimatedBrainLogo(isAnimating: appModel.isBusy, size: 84)
+            }
+            .buttonStyle(.plain)
+            .help("Open Dashboard")
         }
-        .toolbar(appModel.showDashboard ? .hidden : .visible, for: .windowToolbar)
-        .frame(minWidth: 1_000, minHeight: 680)
+        .padding(.horizontal, 14)
+        .frame(height: 68)
+        .zIndex(2)
+        .background {
+            ZStack {
+                MWTheme.bgVoid
+                LinearGradient(
+                    colors: [MWTheme.bgPanel2.opacity(0.94), MWTheme.bgVoid.opacity(0.98)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(MWTheme.frostSoft.opacity(0.18))
+                .frame(height: 1)
+        }
     }
 
     private var hiddenKeyboardShortcuts: some View {

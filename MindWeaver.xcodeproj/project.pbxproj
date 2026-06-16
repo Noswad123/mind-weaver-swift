@@ -1,0 +1,516 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1C3EAED02FE0DA94003CEB24 /* CommandOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEAE2FE0D901003CEB24 /* CommandOutput.swift */; };
+		1C3EAED12FE0DA9D003CEB24 /* MindWeaverEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEAF2FE0D901003CEB24 /* MindWeaverEngine.swift */; };
+		1C3EAED22FE0DA9D003CEB24 /* MWBinaryStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB02FE0D901003CEB24 /* MWBinaryStatus.swift */; };
+		1C3EAED32FE0DA9D003CEB24 /* MWCLIEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB12FE0D901003CEB24 /* MWCLIEngine.swift */; };
+		1C3EAED42FE0DAA8003CEB24 /* MWGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB42FE0D901003CEB24 /* MWGraph.swift */; };
+		1C3EAED52FE0DAA8003CEB24 /* MWTodo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB62FE0D901003CEB24 /* MWTodo.swift */; };
+		1C3EAED62FE0DAA8003CEB24 /* MWNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB52FE0D901003CEB24 /* MWNote.swift */; };
+		1C3EAED72FE0DAA8003CEB24 /* SidebarMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB72FE0D901003CEB24 /* SidebarMode.swift */; };
+		1C3EAED82FE0DAA8003CEB24 /* FileNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB32FE0D901003CEB24 /* FileNode.swift */; };
+		1C3EAED92FE0DAB8003CEB24 /* FlexibleCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBC2FE0D901003CEB24 /* FlexibleCoding.swift */; };
+		1C3EAEDA2FE0DAB8003CEB24 /* MindWeaverPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBD2FE0D901003CEB24 /* MindWeaverPaths.swift */; };
+		1C3EAEDB2FE0DAB8003CEB24 /* DomainColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBB2FE0D901003CEB24 /* DomainColorPalette.swift */; };
+		1C3EAEDC2FE0DAB8003CEB24 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */; };
+		1C3EAEF02FE0F010003CEB24 /* MWTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */; };
+		1C3EAEF22FE0F650003CEB24 /* WindowChromeConfigurator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */; };
+		1C3EAEDD2FE0DABF003CEB24 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC02FE0D901003CEB24 /* AppModel.swift */; };
+		1C3EAEDE2FE0DACB003CEB24 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC52FE0D901003CEB24 /* DashboardView.swift */; };
+		1C3EAEDF2FE0DACB003CEB24 /* GraphLayoutEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */; };
+		1C3EAEE02FE0DACB003CEB24 /* GraphPlaceholderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC72FE0D901003CEB24 /* GraphPlaceholderView.swift */; };
+		1C3EAEE12FE0DACB003CEB24 /* TodoInspectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAECB2FE0D901003CEB24 /* TodoInspectorView.swift */; };
+		1C3EAEE22FE0DACB003CEB24 /* NoteSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */; };
+		1C3EAEE32FE0DACB003CEB24 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */; };
+		1C3EAEE42FE0DACB003CEB24 /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */; };
+		1C3EAEE52FE0DACB003CEB24 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC42FE0D901003CEB24 /* ContentView.swift */; };
+		1C3EAEE62FE0DACB003CEB24 /* MindWeaverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAECD2FE0D901003CEB24 /* MindWeaverApp.swift */; };
+		1C3EAEE72FE0DACB003CEB24 /* CommandOutputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC32FE0D901003CEB24 /* CommandOutputView.swift */; };
+		1C3EAEE82FE0DACB003CEB24 /* AnimatedBrainLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC22FE0D901003CEB24 /* AnimatedBrainLogo.swift */; };
+		1C3EAEE92FE0DB3D003CEB24 /* mind-weaver.png in Resources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB92FE0D901003CEB24 /* mind-weaver.png */; };
+		1C3EAEEA2FE0E7A0003CEB24 /* mind-weaver-logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 1C3EAEEC2FE0E7A0003CEB24 /* mind-weaver-logo.png */; };
+		1C3EAEEB2FE0E7A0003CEB24 /* breath-brain.png in Resources */ = {isa = PBXBuildFile; fileRef = 1C3EAEED2FE0E7A0003CEB24 /* breath-brain.png */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1C3EAEAE2FE0D901003CEB24 /* CommandOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandOutput.swift; sourceTree = "<group>"; };
+		1C3EAEAF2FE0D901003CEB24 /* MindWeaverEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindWeaverEngine.swift; sourceTree = "<group>"; };
+		1C3EAEB02FE0D901003CEB24 /* MWBinaryStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWBinaryStatus.swift; sourceTree = "<group>"; };
+		1C3EAEB12FE0D901003CEB24 /* MWCLIEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWCLIEngine.swift; sourceTree = "<group>"; };
+		1C3EAEB32FE0D901003CEB24 /* FileNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileNode.swift; sourceTree = "<group>"; };
+		1C3EAEB42FE0D901003CEB24 /* MWGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWGraph.swift; sourceTree = "<group>"; };
+		1C3EAEB52FE0D901003CEB24 /* MWNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWNote.swift; sourceTree = "<group>"; };
+		1C3EAEB62FE0D901003CEB24 /* MWTodo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWTodo.swift; sourceTree = "<group>"; };
+		1C3EAEB72FE0D901003CEB24 /* SidebarMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarMode.swift; sourceTree = "<group>"; };
+		1C3EAEB92FE0D901003CEB24 /* mind-weaver.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "mind-weaver.png"; sourceTree = "<group>"; };
+		1C3EAEEC2FE0E7A0003CEB24 /* mind-weaver-logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "mind-weaver-logo.png"; sourceTree = "<group>"; };
+		1C3EAEED2FE0E7A0003CEB24 /* breath-brain.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "breath-brain.png"; sourceTree = "<group>"; };
+		1C3EAEBB2FE0D901003CEB24 /* DomainColorPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainColorPalette.swift; sourceTree = "<group>"; };
+		1C3EAEBC2FE0D901003CEB24 /* FlexibleCoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlexibleCoding.swift; sourceTree = "<group>"; };
+		1C3EAEBD2FE0D901003CEB24 /* MindWeaverPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindWeaverPaths.swift; sourceTree = "<group>"; };
+		1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWTheme.swift; sourceTree = "<group>"; };
+		1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChromeConfigurator.swift; sourceTree = "<group>"; };
+		1C3EAEC02FE0D901003CEB24 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		1C3EAEC22FE0D901003CEB24 /* AnimatedBrainLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedBrainLogo.swift; sourceTree = "<group>"; };
+		1C3EAEC32FE0D901003CEB24 /* CommandOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandOutputView.swift; sourceTree = "<group>"; };
+		1C3EAEC42FE0D901003CEB24 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		1C3EAEC52FE0D901003CEB24 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphLayoutEngine.swift; sourceTree = "<group>"; };
+		1C3EAEC72FE0D901003CEB24 /* GraphPlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphPlaceholderView.swift; sourceTree = "<group>"; };
+		1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
+		1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSidebarView.swift; sourceTree = "<group>"; };
+		1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		1C3EAECB2FE0D901003CEB24 /* TodoInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoInspectorView.swift; sourceTree = "<group>"; };
+		1C3EAECD2FE0D901003CEB24 /* MindWeaverApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindWeaverApp.swift; sourceTree = "<group>"; };
+		1CE27CB92FE0D51000B35722 /* MindWeaver.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MindWeaver.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		1CE27CBB2FE0D51000B35722 /* MindWeaver */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MindWeaver;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1CE27CB62FE0D51000B35722 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1C3EAEB22FE0D901003CEB24 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEAE2FE0D901003CEB24 /* CommandOutput.swift */,
+				1C3EAEAF2FE0D901003CEB24 /* MindWeaverEngine.swift */,
+				1C3EAEB02FE0D901003CEB24 /* MWBinaryStatus.swift */,
+				1C3EAEB12FE0D901003CEB24 /* MWCLIEngine.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		1C3EAEB82FE0D901003CEB24 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEB32FE0D901003CEB24 /* FileNode.swift */,
+				1C3EAEB42FE0D901003CEB24 /* MWGraph.swift */,
+				1C3EAEB52FE0D901003CEB24 /* MWNote.swift */,
+				1C3EAEB62FE0D901003CEB24 /* MWTodo.swift */,
+				1C3EAEB72FE0D901003CEB24 /* SidebarMode.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		1C3EAEBA2FE0D901003CEB24 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEB92FE0D901003CEB24 /* mind-weaver.png */,
+				1C3EAEEC2FE0E7A0003CEB24 /* mind-weaver-logo.png */,
+				1C3EAEED2FE0E7A0003CEB24 /* breath-brain.png */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		1C3EAEBF2FE0D901003CEB24 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEBB2FE0D901003CEB24 /* DomainColorPalette.swift */,
+				1C3EAEBC2FE0D901003CEB24 /* FlexibleCoding.swift */,
+				1C3EAEBD2FE0D901003CEB24 /* MindWeaverPaths.swift */,
+				1C3EAEF12FE0F010003CEB24 /* MWTheme.swift */,
+				1C3EAEBE2FE0D901003CEB24 /* SettingsWindowController.swift */,
+				1C3EAEF32FE0F650003CEB24 /* WindowChromeConfigurator.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		1C3EAEC12FE0D901003CEB24 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEC02FE0D901003CEB24 /* AppModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		1C3EAECC2FE0D901003CEB24 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEC22FE0D901003CEB24 /* AnimatedBrainLogo.swift */,
+				1C3EAEC32FE0D901003CEB24 /* CommandOutputView.swift */,
+				1C3EAEC42FE0D901003CEB24 /* ContentView.swift */,
+				1C3EAEC52FE0D901003CEB24 /* DashboardView.swift */,
+				1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */,
+				1C3EAEC72FE0D901003CEB24 /* GraphPlaceholderView.swift */,
+				1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */,
+				1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */,
+				1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */,
+				1C3EAECB2FE0D901003CEB24 /* TodoInspectorView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		1C3EAECE2FE0D901003CEB24 /* MindWeaver */ = {
+			isa = PBXGroup;
+			children = (
+				1C3EAEB22FE0D901003CEB24 /* Engine */,
+				1C3EAEB82FE0D901003CEB24 /* Models */,
+				1C3EAEBA2FE0D901003CEB24 /* Resources */,
+				1C3EAEBF2FE0D901003CEB24 /* Support */,
+				1C3EAEC12FE0D901003CEB24 /* ViewModels */,
+				1C3EAECC2FE0D901003CEB24 /* Views */,
+				1C3EAECD2FE0D901003CEB24 /* MindWeaverApp.swift */,
+			);
+			name = MindWeaver;
+			path = Sources/MindWeaver;
+			sourceTree = "<group>";
+		};
+		1CE27CB02FE0D51000B35722 = {
+			isa = PBXGroup;
+			children = (
+				1CE27CBB2FE0D51000B35722 /* MindWeaver */,
+				1C3EAECE2FE0D901003CEB24 /* MindWeaver */,
+				1CE27CBA2FE0D51000B35722 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		1CE27CBA2FE0D51000B35722 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1CE27CB92FE0D51000B35722 /* MindWeaver.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1CE27CB82FE0D51000B35722 /* MindWeaver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1CE27CC42FE0D51300B35722 /* Build configuration list for PBXNativeTarget "MindWeaver" */;
+			buildPhases = (
+				1CE27CB52FE0D51000B35722 /* Sources */,
+				1CE27CB62FE0D51000B35722 /* Frameworks */,
+				1CE27CB72FE0D51000B35722 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				1CE27CBB2FE0D51000B35722 /* MindWeaver */,
+			);
+			name = MindWeaver;
+			packageProductDependencies = (
+			);
+			productName = MindWeaver;
+			productReference = 1CE27CB92FE0D51000B35722 /* MindWeaver.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1CE27CB12FE0D51000B35722 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2650;
+				LastUpgradeCheck = 2650;
+				TargetAttributes = {
+					1CE27CB82FE0D51000B35722 = {
+						CreatedOnToolsVersion = 26.5;
+					};
+				};
+			};
+			buildConfigurationList = 1CE27CB42FE0D51000B35722 /* Build configuration list for PBXProject "MindWeaver" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 1CE27CB02FE0D51000B35722;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 1CE27CBA2FE0D51000B35722 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				1CE27CB82FE0D51000B35722 /* MindWeaver */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		1CE27CB72FE0D51000B35722 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C3EAEE92FE0DB3D003CEB24 /* mind-weaver.png in Resources */,
+				1C3EAEEA2FE0E7A0003CEB24 /* mind-weaver-logo.png in Resources */,
+				1C3EAEEB2FE0E7A0003CEB24 /* breath-brain.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		1CE27CB52FE0D51000B35722 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C3EAED02FE0DA94003CEB24 /* CommandOutput.swift in Sources */,
+				1C3EAED42FE0DAA8003CEB24 /* MWGraph.swift in Sources */,
+				1C3EAED52FE0DAA8003CEB24 /* MWTodo.swift in Sources */,
+				1C3EAED62FE0DAA8003CEB24 /* MWNote.swift in Sources */,
+				1C3EAED72FE0DAA8003CEB24 /* SidebarMode.swift in Sources */,
+				1C3EAED82FE0DAA8003CEB24 /* FileNode.swift in Sources */,
+				1C3EAED12FE0DA9D003CEB24 /* MindWeaverEngine.swift in Sources */,
+				1C3EAEDD2FE0DABF003CEB24 /* AppModel.swift in Sources */,
+				1C3EAED92FE0DAB8003CEB24 /* FlexibleCoding.swift in Sources */,
+				1C3EAEDE2FE0DACB003CEB24 /* DashboardView.swift in Sources */,
+				1C3EAEDF2FE0DACB003CEB24 /* GraphLayoutEngine.swift in Sources */,
+				1C3EAEE02FE0DACB003CEB24 /* GraphPlaceholderView.swift in Sources */,
+				1C3EAEE12FE0DACB003CEB24 /* TodoInspectorView.swift in Sources */,
+				1C3EAEE22FE0DACB003CEB24 /* NoteSidebarView.swift in Sources */,
+				1C3EAEE32FE0DACB003CEB24 /* SettingsView.swift in Sources */,
+				1C3EAEE42FE0DACB003CEB24 /* NoteDetailView.swift in Sources */,
+				1C3EAEE52FE0DACB003CEB24 /* ContentView.swift in Sources */,
+				1C3EAEE62FE0DACB003CEB24 /* MindWeaverApp.swift in Sources */,
+				1C3EAEE72FE0DACB003CEB24 /* CommandOutputView.swift in Sources */,
+				1C3EAEE82FE0DACB003CEB24 /* AnimatedBrainLogo.swift in Sources */,
+				1C3EAEDA2FE0DAB8003CEB24 /* MindWeaverPaths.swift in Sources */,
+				1C3EAEDB2FE0DAB8003CEB24 /* DomainColorPalette.swift in Sources */,
+				1C3EAEF02FE0F010003CEB24 /* MWTheme.swift in Sources */,
+				1C3EAEDC2FE0DAB8003CEB24 /* SettingsWindowController.swift in Sources */,
+				1C3EAEF22FE0F650003CEB24 /* WindowChromeConfigurator.swift in Sources */,
+				1C3EAED22FE0DA9D003CEB24 /* MWBinaryStatus.swift in Sources */,
+				1C3EAED32FE0DA9D003CEB24 /* MWCLIEngine.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1CE27CC22FE0D51300B35722 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = B68YF3V36T;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		1CE27CC32FE0D51300B35722 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = B68YF3V36T;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		1CE27CC52FE0D51300B35722 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B68YF3V36T;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "jamal-arcana.MindWeaver";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		1CE27CC62FE0D51300B35722 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = B68YF3V36T;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "jamal-arcana.MindWeaver";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1CE27CB42FE0D51000B35722 /* Build configuration list for PBXProject "MindWeaver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1CE27CC22FE0D51300B35722 /* Debug */,
+				1CE27CC32FE0D51300B35722 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		1CE27CC42FE0D51300B35722 /* Build configuration list for PBXNativeTarget "MindWeaver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1CE27CC52FE0D51300B35722 /* Debug */,
+				1CE27CC62FE0D51300B35722 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1CE27CB12FE0D51000B35722 /* Project object */;
+}

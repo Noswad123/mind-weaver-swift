@@ -43,10 +43,12 @@ struct TodoInspectorView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
             }
+            .mwScrollBackground()
 
             Divider()
             CommandOutputView()
         }
+        .background { MWTheme.appBackground }
         .onAppear { loadSelectedTodo() }
         .onChange(of: appModel.selectedTodoID) { _ in loadSelectedTodo() }
     }
@@ -57,8 +59,9 @@ struct TodoInspectorView: View {
                 Text("Todo Inspector")
                     .font(.title2)
                     .bold()
+                    .foregroundStyle(MWTheme.emberHot)
                 Text("Inspect and edit source-backed task-index todo metadata.")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MWTheme.textMuted)
             }
             Spacer()
             if appModel.isWorking {
@@ -71,12 +74,12 @@ struct TodoInspectorView: View {
         VStack(spacing: 12) {
             Image(systemName: "checklist")
                 .font(.system(size: 42))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.frostSoft)
             Text("Select a todo")
                 .font(.title3)
                 .bold()
             Text("Choose a todo row to inspect properties, edit metadata, or open its source note.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MWTheme.textMuted)
         }
         .frame(maxWidth: .infinity, minHeight: 260)
     }
@@ -142,7 +145,7 @@ struct TodoInspectorView: View {
 
                     HStack {
                         Text("Effective weight: \(todo.displayEffectiveWeight, specifier: "%.2f")")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(MWTheme.textMuted)
                         Spacer()
                         Button("Save Todo") {
                             Task { await appModel.updateTodo(todo, patch: singlePatch(original: todo)) }
@@ -173,7 +176,7 @@ struct TodoInspectorView: View {
                 HStack {
                     Text("Only non-empty fields are applied in bulk.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(MWTheme.textMuted)
                     Spacer()
                     Button("Apply to Selected") {
                         Task { await appModel.updateSelectedTodos(patch: bulkPatch()) }
@@ -206,14 +209,14 @@ struct TodoInspectorView: View {
 
     private func propertyRow(_ label: String, _ value: String) -> some View {
         GridRow {
-            Text(label).foregroundStyle(.secondary)
+            Text(label).foregroundStyle(MWTheme.textMuted)
             Text(value.isEmpty ? "—" : value)
         }
     }
 
     private func editorRow(_ label: String, _ prompt: String, _ value: Binding<String>) -> some View {
         GridRow {
-            Text(label).foregroundStyle(.secondary)
+            Text(label).foregroundStyle(MWTheme.textMuted)
             TextField(prompt, text: value)
                 .textFieldStyle(.roundedBorder)
                 .frame(maxWidth: 260)
@@ -304,12 +307,12 @@ private extension String {
 
 private func statusColor(_ status: String) -> Color {
     switch status.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-    case "done": .green
-    case "next": .blue
-    case "waiting": .yellow
-    case "blocked": .red
-    case "inbox": .secondary
-    default: .secondary
+    case "done": MWTheme.greenSync
+    case "next": MWTheme.frostSoft
+    case "waiting": MWTheme.emberHot
+    case "blocked": MWTheme.danger
+    case "inbox": MWTheme.textMuted
+    default: MWTheme.textMuted
     }
 }
 
