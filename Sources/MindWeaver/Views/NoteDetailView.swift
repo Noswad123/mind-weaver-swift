@@ -27,12 +27,12 @@ struct NoteDetailView: View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(note.title)
-                    .font(.title2)
+                    .font(readableFont(size: 21, weight: .bold))
                     .bold()
                     .foregroundStyle(MWTheme.emberHot)
 
                 Text(note.displayPath)
-                    .font(.caption)
+                    .font(readableFont(size: 12))
                     .foregroundStyle(MWTheme.textMuted)
                     .textSelection(.enabled)
             }
@@ -57,9 +57,14 @@ struct NoteDetailView: View {
             AnimatedBrainLogo(isAnimating: appModel.isWorking, size: 96)
 
             Text("A native SwiftUI shell around the Go mw engine.")
+                .font(readableFont(size: 14))
                 .foregroundStyle(MWTheme.textMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func readableFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        .system(size: size * appModel.readabilityScale, weight: weight, design: design)
     }
 
     private func reveal(_ note: MWNote) {
@@ -84,6 +89,7 @@ struct MarkdownPreview: View {
         ScrollView {
             if markdown.isEmpty {
                 Text("Markdown preview will appear here when mw returns note content.")
+                    .font(markdownFont(size: 14))
                     .foregroundStyle(MWTheme.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
@@ -93,6 +99,7 @@ struct MarkdownPreview: View {
                         blockView(block)
                     }
                 }
+                .font(markdownFont(size: 14))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(24)
             }
@@ -140,17 +147,18 @@ struct MarkdownPreview: View {
                 inlineText(text)
                     .textSelection(.enabled)
             }
+            .font(markdownFont(size: 14))
             .padding(.leading, CGFloat(level) * 18)
 
         case .paragraph(let text):
             inlineText(text)
-                .font(.body)
-                .lineSpacing(4)
+                .font(markdownFont(size: 14))
+                .lineSpacing(4 * appModel.readabilityScale)
                 .textSelection(.enabled)
 
         case .code(let text):
             Text(text)
-                .font(.system(.body, design: .monospaced))
+                .font(markdownFont(size: 13, design: .monospaced))
                 .textSelection(.enabled)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -162,6 +170,7 @@ struct MarkdownPreview: View {
 
         case .quote(let text):
             inlineText(text)
+                .font(markdownFont(size: 14))
                 .italic()
                 .foregroundStyle(MWTheme.textMuted)
                 .textSelection(.enabled)
@@ -176,11 +185,15 @@ struct MarkdownPreview: View {
 
     private func font(forHeadingLevel level: Int) -> Font {
         switch level {
-        case 1: .largeTitle
-        case 2: .title2
-        case 3: .title3
-        default: .headline
+        case 1: markdownFont(size: 34)
+        case 2: markdownFont(size: 21)
+        case 3: markdownFont(size: 17)
+        default: markdownFont(size: 14, weight: .semibold)
         }
+    }
+
+    private func markdownFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        .system(size: size * appModel.readabilityScale, weight: weight, design: design)
     }
 
     private func inlineText(_ text: String) -> MarkdownInlineText {

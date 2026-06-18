@@ -32,7 +32,7 @@ enum ToolResolver {
             return candidate
         }
 
-        for directory in searchDirectories {
+        for directory in resolvedSearchDirectories {
             let candidate = URL(fileURLWithPath: directory).appendingPathComponent(executableName)
             if isExecutable(candidate) {
                 return candidate
@@ -66,15 +66,31 @@ enum ToolResolver {
 
     private static var searchDirectories: [String] {
         [
-            homebrewAppleSiliconBin,
-            homebrewIntelBin,
             NSString(string: "~/.local/bin").expandingTildeInPath,
             NSString(string: "~/go/bin").expandingTildeInPath,
+            homebrewAppleSiliconBin,
+            homebrewIntelBin,
             "/usr/bin",
             "/bin",
             "/usr/sbin",
             "/sbin",
         ]
+    }
+
+    private static var resolvedSearchDirectories: [String] {
+        var seen: Set<String> = []
+        return (searchDirectories + pathDirectories).filter { directory in
+            let trimmed = directory.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !seen.contains(trimmed) else { return false }
+            seen.insert(trimmed)
+            return true
+        }
+    }
+
+    private static var pathDirectories: [String] {
+        (ProcessInfo.processInfo.environment["PATH"] ?? "")
+            .split(separator: ":")
+            .map(String.init)
     }
 }
 

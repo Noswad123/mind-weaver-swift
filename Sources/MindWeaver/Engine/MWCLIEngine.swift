@@ -117,12 +117,6 @@ actor MWCLIEngine: MindWeaverEngine {
         try await run(["notes", "validate", "--all"])
     }
 
-    func rebuildLocalBinary() async throws -> CommandOutput {
-        let output = try await runExternal(executableURL: URL(fileURLWithPath: "/usr/bin/env"), arguments: ["tsync", "--only", "mw"])
-        binary = MWBinaryResolver.resolve()
-        return output
-    }
-
     func deleteLocalBinary() async throws -> CommandOutput {
         let localURL = MWBinaryResolver.localBinaryURL
 
@@ -171,7 +165,9 @@ actor MWCLIEngine: MindWeaverEngine {
 
             process.executableURL = executableURL
             process.arguments = arguments
-            process.environment = ToolResolver.processEnvironment()
+            var environment = ToolResolver.processEnvironment()
+            environment["NOTES_DIR"] = MindWeaverPaths.notesDirectory().path
+            process.environment = environment
             process.standardOutput = stdout
             process.standardError = stderr
 
@@ -222,14 +218,6 @@ private enum MWBinaryResolver {
             return resolution(url: bundled, source: .bundled)
         }
 
-        if isExecutable(homebrewAppleSiliconBinaryURL) {
-            return resolution(url: homebrewAppleSiliconBinaryURL, source: .homebrew)
-        }
-
-        if isExecutable(homebrewIntelBinaryURL) {
-            return resolution(url: homebrewIntelBinaryURL, source: .homebrew)
-        }
-
         if isExecutable(localBinaryURL) {
             return resolution(url: localBinaryURL, source: .localBin)
         }
@@ -240,6 +228,14 @@ private enum MWBinaryResolver {
 
         if let pathURL = findOnPath("mw") {
             return resolution(url: pathURL, source: .path)
+        }
+
+        if isExecutable(homebrewAppleSiliconBinaryURL) {
+            return resolution(url: homebrewAppleSiliconBinaryURL, source: .homebrew)
+        }
+
+        if isExecutable(homebrewIntelBinaryURL) {
+            return resolution(url: homebrewIntelBinaryURL, source: .homebrew)
         }
 
         return MWBinaryResolution(

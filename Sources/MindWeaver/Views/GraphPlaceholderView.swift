@@ -117,6 +117,10 @@ struct GraphPlaceholderView: View {
         .onChange(of: appModel.graphResetToken) { _ in
             resetGraphLayout()
         }
+        .onChange(of: appModel.graphRevision) { _ in
+            rebuildRenderCacheIfNeeded(force: true)
+            resetGraphLayout()
+        }
         .onChange(of: appModel.graph.nodes.count) { _ in
             rebuildRenderCacheIfNeeded()
             resetGraphLayout()

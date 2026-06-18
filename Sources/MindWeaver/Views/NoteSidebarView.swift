@@ -20,18 +20,19 @@ struct NoteSidebarView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(appModel.visibleNotes.count)/\(appModel.notes.count) notes • \(appModel.visibleTodos.count)/\(appModel.todos.count) todos")
-                    .font(.caption)
+                    .font(sidebarFont(size: 12))
                     .bold()
                     .foregroundStyle(MWTheme.frostSoft)
 
                 Text(appModel.statusMessage)
-                    .font(.caption2)
+                    .font(sidebarFont(size: 11))
                     .foregroundStyle(MWTheme.textMuted)
                     .lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding([.horizontal, .bottom])
         }
+        .font(sidebarFont(size: 13))
         .background { MWTheme.appBackground }
         .navigationSplitViewColumnWidth(min: 280, ideal: 340)
     }
@@ -40,7 +41,7 @@ struct NoteSidebarView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Explorer View")
-                    .font(.headline)
+                    .font(sidebarFont(size: 13, weight: .semibold))
                     .foregroundStyle(MWTheme.emberHot)
 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
@@ -49,7 +50,7 @@ struct NoteSidebarView: View {
                             appModel.sidebarMode = mode
                         } label: {
                             Label(mode.rawValue, systemImage: mode.systemImage)
-                                .font(.caption)
+                                .font(sidebarFont(size: 12))
                                 .lineLimit(1)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 10)
@@ -65,10 +66,13 @@ struct NoteSidebarView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     TextField("Search", text: $appModel.searchText)
                         .textFieldStyle(.roundedBorder)
+                        .onChange(of: appModel.searchText) { _ in
+                            appModel.refreshGraphIfSearchWasCleared()
+                        }
 
                     if !appModel.availableDomains.isEmpty {
                         Text("Domains")
-                            .font(.caption)
+                            .font(sidebarFont(size: 12))
                             .bold()
                             .foregroundStyle(MWTheme.frostSoft)
 
@@ -79,7 +83,7 @@ struct NoteSidebarView: View {
                                         appModel.toggleDomain(domain)
                                     } label: {
                                         Text(domain)
-                                            .font(.caption)
+                                            .font(sidebarFont(size: 12))
                                             .lineLimit(1)
                                             .foregroundStyle(domainForeground(domain))
                                             .padding(.horizontal, 8)
@@ -95,7 +99,7 @@ struct NoteSidebarView: View {
 
                         if !appModel.selectedDomains.isEmpty {
                             Text(appModel.sidebarMode == .graph ? "Graph nodes matching any selected domain." : "Matching notes that include all selected domains.")
-                                .font(.caption2)
+                                .font(sidebarFont(size: 11))
                                 .foregroundStyle(MWTheme.textMuted)
                         }
                     }
@@ -115,7 +119,7 @@ struct NoteSidebarView: View {
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Force \(appModel.graphForceStrength, specifier: "%.1f")")
-                                .font(.caption2)
+                                .font(sidebarFont(size: 11))
                                 .foregroundStyle(MWTheme.textMuted)
                             Slider(value: $appModel.graphForceStrength, in: 0.2...2.0)
                         }
@@ -130,7 +134,7 @@ struct NoteSidebarView: View {
                         }
 
                         Text("Rendered \(appModel.visibleGraph.nodes.count) nodes • \(appModel.visibleGraph.edges.count) edges")
-                            .font(.caption2)
+                            .font(sidebarFont(size: 11))
                             .foregroundStyle(MWTheme.textMuted)
                     }
                     .padding(.top, 8)
@@ -164,7 +168,7 @@ struct NoteSidebarView: View {
                                 .fontWeight(.semibold)
 
                             Text(dashboard.displayPath)
-                                .font(.caption)
+                                .font(sidebarFont(size: 12))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
@@ -209,12 +213,12 @@ struct NoteSidebarView: View {
                                 .lineLimit(3)
 
                             Text([todo.noteTitle, todo.path.map { "line \(todo.lineNumber) • \($0)" }].compactMap { $0 }.joined(separator: "\n"))
-                                .font(.caption)
+                                .font(sidebarFont(size: 12))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
 
                             Label(todo.displayStatus, systemImage: sidebarStatusSystemImage(todo.displayStatus))
-                                .font(.caption2)
+                                .font(sidebarFont(size: 11))
                                 .foregroundStyle(sidebarStatusColor(todo.displayStatus))
 
                             todoMetadataSummary(todo)
@@ -243,7 +247,7 @@ struct NoteSidebarView: View {
         ].compactMap { $0 }
 
         return Text(parts.joined(separator: "  "))
-            .font(.caption2)
+            .font(sidebarFont(size: 11))
             .foregroundStyle(.tertiary)
             .lineLimit(1)
     }
@@ -295,7 +299,7 @@ struct NoteSidebarView: View {
         List {
             Section("Results") {
                 Text("Rendered graph nodes ordered by current selection and link neighborhood.")
-                    .font(.caption2)
+                    .font(sidebarFont(size: 11))
                     .foregroundStyle(.secondary)
             }
 
@@ -393,7 +397,7 @@ struct NoteSidebarView: View {
         } label: {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: graphNodeIcon(role))
-                    .font(.system(size: 9))
+                    .font(sidebarFont(size: 9))
                     .foregroundStyle(graphNodeColor(node, role: role))
                     .padding(.top, 4)
 
@@ -404,14 +408,14 @@ struct NoteSidebarView: View {
 
                     if let path = node.path, !path.isEmpty {
                         Text(path)
-                            .font(.caption2)
+                            .font(sidebarFont(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
 
                     if role == .connected {
                         Text("connected • degree \(graphDegree(node.id))")
-                            .font(.caption2)
+                            .font(sidebarFont(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -447,17 +451,17 @@ struct NoteSidebarView: View {
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(note.title)
-                    .font(.headline)
+                    .font(sidebarFont(size: 13, weight: .semibold))
                     .lineLimit(1)
 
                 Text(note.displayPath)
-                    .font(.caption)
+                    .font(sidebarFont(size: 12))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
                 if !note.domains.isEmpty || !note.tags.isEmpty {
                     Text((note.domains + note.tags.map { "#\($0)" }).joined(separator: "  "))
-                        .font(.caption2)
+                        .font(sidebarFont(size: 11))
                         .foregroundStyle(.blue)
                         .lineLimit(1)
                 }
@@ -483,6 +487,10 @@ struct NoteSidebarView: View {
 
     private func explorerModeBackground(_ mode: SidebarMode) -> some ShapeStyle {
         appModel.sidebarMode == mode ? MWTheme.selectedFill : MWTheme.coldFill
+    }
+
+    private func sidebarFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
+        .system(size: size * appModel.readabilityScale, weight: weight, design: design)
     }
 
     private func rowBackground(isSelected: Bool) -> some View {

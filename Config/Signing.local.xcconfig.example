@@ -1,0 +1,6 @@
+// Local Xcode signing overrides. Copy this file to:
+//   Config/Signing.local.xcconfig
+// That local file is ignored by git.
+
+// DEVELOPMENT_TEAM = YOURTEAMID
+// PRODUCT_BUNDLE_IDENTIFIER = com.example.MindWeaver
