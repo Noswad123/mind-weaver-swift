@@ -7,6 +7,40 @@ actor MWCLIEngine: MindWeaverEngine {
         binary.status
     }
 
+    func readinessCheck() async -> MWReadinessReport {
+        binary = MWBinaryResolver.resolve()
+        var checks: [MWCapabilityCheck] = []
+
+        guard binary.status.isExecutable else {
+            return MWReadinessReport(
+                binaryStatus: binary.status,
+                minimumVersion: MindWeaverRequirements.minimumMWVersion,
+                checks: [
+                    MWCapabilityCheck(
+                        name: "mw binary",
+                        command: "mw",
+                        required: true,
+                        succeeded: false,
+                        message: "Install mw with Homebrew or provide an executable local override at ~/.local/bin/mw."
+                    )
+                ]
+            )
+        }
+
+        checks.append(await versionCheck())
+        checks.append(await commandCheck(name: "notes query JSON", arguments: ["query", "notes", "--format", "json", "--limit", "1"]))
+        checks.append(await commandCheck(name: "todos query", arguments: ["query", "todos"]))
+        checks.append(await commandCheck(name: "graph query", arguments: ["query", "graph", "--depth", "0", "--limit", "1"]))
+        checks.append(await commandCheck(name: "notes sync command", arguments: ["notes", "sync", "--help"]))
+        checks.append(await commandCheck(name: "notes validate command", arguments: ["notes", "validate", "--help"]))
+
+        return MWReadinessReport(
+            binaryStatus: binary.status,
+            minimumVersion: MindWeaverRequirements.minimumMWVersion,
+            checks: checks
+        )
+    }
+
     func listNotes(limit: Int = 100, search: String? = nil) async throws -> [MWNote] {
         var args = ["query", "notes", "--format", "json", "--limit", String(limit)]
 
@@ -138,6 +172,83 @@ actor MWCLIEngine: MindWeaverEngine {
     private func run(_ arguments: [String]) async throws -> CommandOutput {
         binary = MWBinaryResolver.resolve()
         return try await runExternal(executableURL: binary.executableURL, arguments: binary.leadingArguments + arguments)
+    }
+
+    private func commandCheck(name: String, arguments: [String], required: Bool = true) async -> MWCapabilityCheck {
+        let command = (["mw"] + arguments).joined(separator: " ")
+        do {
+            let output = try await run(arguments)
+            return MWCapabilityCheck(
+                name: name,
+                command: command,
+                required: required,
+                succeeded: output.succeeded,
+                message: output.succeeded ? "OK" : output.displayText
+            )
+        } catch {
+            return MWCapabilityCheck(
+                name: name,
+                command: command,
+                required: required,
+                succeeded: false,
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    private func versionCheck() async -> MWCapabilityCheck {
+        let command = "mw version --short"
+        do {
+            let output = try await run(["version", "--short"])
+            let version = output.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard output.succeeded else {
+                return MWCapabilityCheck(name: "mw version", command: command, required: true, succeeded: false, message: output.displayText)
+            }
+
+            if Self.isDevelopmentVersion(version) {
+                return MWCapabilityCheck(
+                    name: "mw version",
+                    command: command,
+                    required: true,
+                    succeeded: true,
+                    message: "\(version) (accepted development build)"
+                )
+            }
+
+            let meetsMinimum = Self.compareSemver(version, MindWeaverRequirements.minimumMWVersion) != .orderedAscending
+            return MWCapabilityCheck(
+                name: "mw version",
+                command: command,
+                required: true,
+                succeeded: meetsMinimum,
+                message: meetsMinimum ? "\(version)" : "\(version) is older than required \(MindWeaverRequirements.minimumMWVersion)"
+            )
+        } catch {
+            return MWCapabilityCheck(name: "mw version", command: command, required: true, succeeded: false, message: error.localizedDescription)
+        }
+    }
+
+    private static func isDevelopmentVersion(_ version: String) -> Bool {
+        let normalized = version.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalized == "dev" || normalized == "head" || normalized == "main"
+    }
+
+    private static func compareSemver(_ lhs: String, _ rhs: String) -> ComparisonResult {
+        let lhsParts = semverParts(lhs)
+        let rhsParts = semverParts(rhs)
+        for index in 0..<3 {
+            if lhsParts[index] < rhsParts[index] { return .orderedAscending }
+            if lhsParts[index] > rhsParts[index] { return .orderedDescending }
+        }
+        return .orderedSame
+    }
+
+    private static func semverParts(_ version: String) -> [Int] {
+        let trimmed = version.trimmingCharacters(in: .whitespacesAndNewlines)
+        let withoutPrefix = trimmed.hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
+        let core = withoutPrefix.split(separator: "-", maxSplits: 1).first.map(String.init) ?? withoutPrefix
+        let parts = core.split(separator: ".").prefix(3).map { Int($0) ?? 0 }
+        return parts + Array(repeating: 0, count: max(0, 3 - parts.count))
     }
 
     private func appendStringFlag(_ name: String, _ value: String?, to args: inout [String]) {

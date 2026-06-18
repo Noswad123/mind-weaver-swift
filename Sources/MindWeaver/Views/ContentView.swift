@@ -21,6 +21,10 @@ struct ContentView: View {
                 NotesDirectoryOnboardingView()
                     .environmentObject(appModel)
                     .zIndex(20)
+            } else if !appModel.readinessReport.checks.isEmpty, !appModel.readinessReport.isReady {
+                MWReadinessIssueView(openSettings: openSettings)
+                    .environmentObject(appModel)
+                    .zIndex(20)
             }
 
             hiddenKeyboardShortcuts
@@ -129,6 +133,69 @@ struct ContentView: View {
         // the app is launched via `swift run`. Use our retained AppKit settings
         // window directly for the gear button.
         SettingsWindowController.shared.show(appModel: appModel)
+    }
+}
+
+private struct MWReadinessIssueView: View {
+    @EnvironmentObject private var appModel: AppModel
+    var openSettings: () -> Void
+
+    var body: some View {
+        ZStack {
+            MWTheme.bgVoid.opacity(0.82)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 16) {
+                Label("mw is not ready", systemImage: "exclamationmark.triangle.fill")
+                    .font(.title2.bold())
+                    .foregroundStyle(MWTheme.emberHot)
+
+                Text("Mind Weaver installed, but the required mw engine is missing, too old, or does not support the commands this app needs.")
+                    .foregroundStyle(MWTheme.text)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(appModel.readinessReport.checks.filter { $0.required && !$0.succeeded }) { check in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(check.name)
+                                .font(.headline)
+                                .foregroundStyle(MWTheme.danger)
+                            Text(check.message)
+                                .font(.caption)
+                                .textSelection(.enabled)
+                                .foregroundStyle(MWTheme.textMuted)
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(MWTheme.coldFill, in: RoundedRectangle(cornerRadius: 12))
+
+                HStack {
+                    Button("Check Again") {
+                        Task { await appModel.runReadinessCheck() }
+                    }
+                    .keyboardShortcut(.defaultAction)
+
+                    Button("Open Settings") {
+                        openSettings()
+                    }
+
+                    Button("Copy Diagnostics") {
+                        appModel.copyDiagnosticsToClipboard()
+                    }
+
+                    Spacer()
+                }
+            }
+            .padding(28)
+            .frame(width: 620)
+            .background(MWTheme.panelFill, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(MWTheme.emberHot.opacity(0.35), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.45), radius: 28, y: 12)
+        }
     }
 }
 

@@ -19,6 +19,10 @@ enum MindWeaverPaths {
         UserDefaults.standard.set(url.standardizedFileURL.path, forKey: notesDirectoryDefaultsKey)
     }
 
+    static func clearNotesDirectory() {
+        UserDefaults.standard.removeObject(forKey: notesDirectoryDefaultsKey)
+    }
+
     private static func storedNotesDirectory() -> URL? {
         let stored = UserDefaults.standard.string(forKey: notesDirectoryDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard !stored.isEmpty else { return nil }

@@ -60,6 +60,25 @@ The supported install path for trial users is Homebrew. Cloning this repository
 and running from source is a maintainer/development workflow, not a supported
 installation path for now.
 
+## Install with Homebrew
+
+```bash
+brew tap Noswad123/jamal-arcana
+brew install Noswad123/jamal-arcana/mw
+brew install --cask Noswad123/jamal-arcana/mind-weaver
+```
+
+The cask depends on the `mw` formula. The app currently requires `mw` version
+`0.1.2` or newer and checks that the required query/sync/validate commands are
+available before loading notes.
+
+On first launch, Mind Weaver asks for your Markdown notes directory. The selected
+directory is stored in app preferences and passed to app-launched `mw` commands
+as `NOTES_DIR`. You can change or reset it later in Settings → Notes.
+
+If setup fails, open Settings → Engine and use **Check Readiness** or Settings →
+Output → **Copy Diagnostics** when reporting issues.
+
 Make sure your shell resolves `mw` to the updated local binary:
 
 ```bash

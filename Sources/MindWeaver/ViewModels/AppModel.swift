@@ -45,6 +45,7 @@ final class AppModel: ObservableObject {
     @Published var notesDirectory: URL
     @Published var needsNotesDirectorySelection: Bool
     @Published var mwBinaryStatus: MWBinaryStatus = .unresolved
+    @Published var readinessReport: MWReadinessReport = .notRun
     @Published var externalToolStatuses: [ExternalToolStatus] = ExternalToolCatalog.statuses()
 
     private static let readabilityScaleDefaultsKey = "readabilityScale"
@@ -68,7 +69,10 @@ final class AppModel: ObservableObject {
                 statusMessage = "Choose notes directory"
                 commandOutput = "Mind Weaver needs a notes directory before running mw commands. Suggested directory: \(notesDirectory.path)"
             } else {
-                await refreshNotes()
+                let ready = await runReadinessCheck()
+                if ready {
+                    await refreshNotes()
+                }
             }
         }
     }
@@ -274,6 +278,21 @@ final class AppModel: ObservableObject {
         externalToolStatuses = ExternalToolCatalog.statuses()
     }
 
+    @discardableResult
+    func runReadinessCheck() async -> Bool {
+        isWorking = true
+        statusMessage = "Checking mw readiness"
+        mwBinaryStatus = await engine.binaryStatus()
+        externalToolStatuses = ExternalToolCatalog.statuses()
+        let report = await engine.readinessCheck()
+        readinessReport = report
+        mwBinaryStatus = report.binaryStatus
+        statusMessage = report.isReady ? "mw is ready" : "mw readiness issues"
+        commandOutput = report.displayText
+        isWorking = false
+        return report.isReady
+    }
+
     func openExternally(_ note: MWNote) {
         guard let fileURL = resolvedFileURL(for: note) else {
             statusMessage = "Cannot resolve note file"
@@ -400,6 +419,28 @@ final class AppModel: ObservableObject {
         }
 
         setNotesDirectory(notesDirectory)
+    }
+
+    func resetNotesDirectorySetup() {
+        MindWeaverPaths.clearNotesDirectory()
+        notesDirectory = MindWeaverPaths.notesDirectory()
+        needsNotesDirectorySelection = true
+        notes = []
+        todos = []
+        graph = MWGraph(nodes: [], edges: [], meta: nil)
+        selectedNoteID = nil
+        selectedTodoID = nil
+        selectedTodoIDs = []
+        domainOptions = []
+        readinessReport = .notRun
+        statusMessage = "Choose notes directory"
+        commandOutput = "Notes directory selection was reset. Choose a directory to continue."
+    }
+
+    func copyDiagnosticsToClipboard() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(diagnosticsText(), forType: .string)
+        statusMessage = "Diagnostics copied"
     }
 
     func chooseNotesDirectory() {
@@ -639,12 +680,49 @@ final class AppModel: ObservableObject {
         domainOptions = []
         statusMessage = "Notes directory set"
         commandOutput = "NOTES_DIR=\(standardized.path)"
-        Task { await refreshNotes() }
+        Task {
+            let ready = await runReadinessCheck()
+            if ready {
+                await refreshNotes()
+            }
+        }
     }
 
     private func directoryExists(_ url: URL) -> Bool {
         var isDirectory: ObjCBool = false
         return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
+    private func diagnosticsText() -> String {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "unknown"
+        let toolLines = externalToolStatuses.map { tool in
+            "- \(tool.name): \(tool.isAvailable ? tool.executablePath ?? "found" : "missing")"
+        }.joined(separator: "\n")
+
+        return """
+        Mind Weaver Diagnostics
+        app version: \(appVersion) (\(build))
+        notes directory: \(notesDirectory.path)
+        needs notes directory selection: \(needsNotesDirectorySelection)
+
+        mw binary:
+        source: \(mwBinaryStatus.source.rawValue)
+        path: \(mwBinaryStatus.executablePath)
+        executable: \(mwBinaryStatus.isExecutable)
+
+        readiness:
+        \(readinessReport.displayText)
+
+        external tools:
+        \(toolLines)
+
+        status:
+        \(statusMessage)
+
+        last command output:
+        \(commandOutput)
+        """
     }
 
     private func todoPriorityRank(_ todo: MWTodo) -> Int {

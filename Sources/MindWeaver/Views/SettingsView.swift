@@ -59,6 +59,10 @@ struct SettingsView: View {
                         Task { await appModel.refreshBinaryStatus() }
                     }
 
+                    Button("Check Readiness") {
+                        Task { await appModel.runReadinessCheck() }
+                    }
+
                     Button("Run Doctor") {
                         Task { await appModel.runDoctor() }
                     }
@@ -67,6 +71,22 @@ struct SettingsView: View {
                 Text("Release installs expect Homebrew to provide `mw`; local overrides in `~/.local/bin/mw` or `~/go/bin/mw` are preferred when present.")
                     .font(.caption)
                     .foregroundStyle(MWTheme.textMuted)
+            }
+
+            Section("Required Capabilities") {
+                Label(
+                    appModel.readinessReport.summary,
+                    systemImage: appModel.readinessReport.isReady ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(appModel.readinessReport.isReady ? MWTheme.greenSync : MWTheme.emberHot)
+
+                Text("Required mw version: \(appModel.readinessReport.minimumVersion)+")
+                    .font(.caption)
+                    .foregroundStyle(MWTheme.textMuted)
+
+                ForEach(appModel.readinessReport.checks) { check in
+                    capabilityRow(check)
+                }
             }
 
             Section("Dependency Readiness") {
@@ -117,6 +137,10 @@ struct SettingsView: View {
                             appModel.confirmNotesDirectory()
                         }
                     }
+
+                    Button("Reset Notes Setup", role: .destructive) {
+                        appModel.resetNotesDirectorySetup()
+                    }
                 }
 
                 Text("The selected directory is persisted by the app and passed to mw as NOTES_DIR for app-launched commands.")
@@ -154,6 +178,16 @@ struct SettingsView: View {
 
     private var outputTab: some View {
         Form {
+            Section("Diagnostics") {
+                Button("Copy Diagnostics") {
+                    appModel.copyDiagnosticsToClipboard()
+                }
+
+                Text("Copies app version, mw readiness, selected notes directory, dependency paths, and last command output for bug reports.")
+                    .font(.caption)
+                    .foregroundStyle(MWTheme.textMuted)
+            }
+
             Section("Last command output") {
                 ScrollView {
                     Text(appModel.commandOutput.isEmpty ? "No output yet." : appModel.commandOutput)
@@ -176,6 +210,33 @@ struct SettingsView: View {
                 .padding(.vertical, 3)
                 .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
         }
+    }
+
+    private func capabilityRow(_ check: MWCapabilityCheck) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline) {
+                Label(check.name, systemImage: check.succeeded ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                    .fontWeight(.semibold)
+                    .foregroundStyle(check.succeeded ? MWTheme.greenSync : MWTheme.danger)
+
+                Spacer()
+
+                Text(check.required ? "Required" : "Optional")
+                    .font(.caption)
+                    .foregroundStyle(MWTheme.textMuted)
+            }
+
+            Text(check.command)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .foregroundStyle(MWTheme.frostSoft)
+
+            Text(check.message)
+                .font(.caption2)
+                .textSelection(.enabled)
+                .foregroundStyle(MWTheme.textMuted)
+        }
+        .padding(.vertical, 4)
     }
 
     private func dependencyRow(_ tool: ExternalToolStatus) -> some View {
