@@ -52,9 +52,13 @@ new concept, the preferred path is to add a Go-owned projection/JSON command to
 ## Requirements
 
 - macOS
-- Swift toolchain / Xcode command line tools
+- Homebrew-installed Mind Weaver app
 - an up-to-date `mw` binary
 - optional: `wisp` and `nvim` for editing notes from the app
+
+The supported install path for trial users is Homebrew. Cloning this repository
+and running from source is a maintainer/development workflow, not a supported
+installation path for now.
 
 Make sure your shell resolves `mw` to the updated local binary:
 
@@ -63,7 +67,9 @@ which mw
 mw query help
 ```
 
-If `which mw` points to an older Homebrew binary, put `~/.local/bin` first:
+Mind Weaver prefers a local development override at `~/.local/bin/mw` when it
+exists, then `~/go/bin/mw`, then the Homebrew release. If you are testing a local
+CLI build, make sure it is executable:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
@@ -82,6 +88,9 @@ ingredients
 
 ## Build and run
 
+Source builds are intended for maintainers only. Trial users should install the
+app through Homebrew.
+
 From this repository:
 
 ```bash
@@ -97,6 +106,30 @@ To open the package in Xcode:
 ```bash
 open Package.swift
 ```
+
+## Xcode signing setup
+
+Shared signing defaults live in:
+
+```text
+Config/Signing.xcconfig
+```
+
+Machine-specific signing values should not be committed. For local Xcode app
+builds, copy the example file and fill in your Apple development team if needed:
+
+```bash
+cp Config/Signing.local.xcconfig.example Config/Signing.local.xcconfig
+```
+
+Then edit `Config/Signing.local.xcconfig`, for example:
+
+```text
+DEVELOPMENT_TEAM = YOURTEAMID
+PRODUCT_BUNDLE_IDENTIFIER = com.example.MindWeaver
+```
+
+`Config/Signing.local.xcconfig` is ignored by git.
 
 ## App icon
 
@@ -281,8 +314,8 @@ Graph interactions:
 Settings are organized into tabs:
 
 - Engine: resolved `mw` binary, source, executable status, doctor
-- Development: rebuild/delete local `~/.local/bin/mw`
-- Notes: notes directory
+- Notes: first-run notes directory selection
+- Development: delete local `~/.local/bin/mw` override
 - Shortcuts: keyboard shortcut reference
 - Output: last command output
 
@@ -335,7 +368,6 @@ protocol MindWeaverEngine {
     func doctor() async throws -> CommandOutput
     func syncNotes() async throws -> CommandOutput
     func validateNotes() async throws -> CommandOutput
-    func rebuildLocalBinary() async throws -> CommandOutput
     func deleteLocalBinary() async throws -> CommandOutput
 }
 ```
@@ -359,7 +391,6 @@ mw todos update --id <todo-id> ...
 mw doctor
 mw notes sync
 mw notes validate --all
-tsync --only mw
 ```
 
 ## Projection direction

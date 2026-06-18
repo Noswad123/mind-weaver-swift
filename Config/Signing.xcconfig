@@ -1,0 +1,9 @@
+// Shared signing defaults. Keep machine-specific values in Signing.local.xcconfig.
+// Copy Config/Signing.local.xcconfig.example to Config/Signing.local.xcconfig
+// for local Xcode builds that require a development team or custom bundle ID.
+
+CODE_SIGN_STYLE = Automatic
+DEVELOPMENT_TEAM =
+PRODUCT_BUNDLE_IDENTIFIER = jamal-arcana.MindWeaver
+
+#include? "Signing.local.xcconfig"

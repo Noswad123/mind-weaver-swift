@@ -9,11 +9,11 @@ struct SettingsView: View {
             engineTab
                 .tabItem { Label("Engine", systemImage: "terminal") }
 
-            developmentTab
-                .tabItem { Label("Development", systemImage: "hammer") }
-
             notesTab
                 .tabItem { Label("Notes", systemImage: "doc.text") }
+
+            developmentTab
+                .tabItem { Label("Development", systemImage: "hammer") }
 
             shortcutsTab
                 .tabItem { Label("Shortcuts", systemImage: "keyboard") }
@@ -64,7 +64,7 @@ struct SettingsView: View {
                     }
                 }
 
-                Text("Release installs expect Homebrew to provide `mw`; local development builds can still use `~/.local/bin/mw` or `~/go/bin/mw` as fallbacks.")
+                Text("Release installs expect Homebrew to provide `mw`; local overrides in `~/.local/bin/mw` or `~/go/bin/mw` are preferred when present.")
                     .font(.caption)
                     .foregroundStyle(MWTheme.textMuted)
             }
@@ -81,17 +81,12 @@ struct SettingsView: View {
 
     private var developmentTab: some View {
         Form {
-            Section("Local Development") {
-                Text("Rebuild uses `tsync --only mw`, which should write the checked-out MindWeaver CLI to `~/.local/bin/mw`.")
+            Section("Local Binary Override") {
+                Text("Mind Weaver prefers `~/.local/bin/mw` over the Homebrew release when that local binary exists. Delete it to fall back to Homebrew or a bundled copy.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 HStack {
-                    Button("Rebuild mw") {
-                        Task { await appModel.rebuildMWBinary() }
-                    }
-                    .disabled(appModel.isWorking)
-
                     Button("Delete ~/.local/bin/mw", role: .destructive) {
                         confirmDeleteLocalBinary = true
                     }
@@ -111,6 +106,22 @@ struct SettingsView: View {
                         .font(.system(.body, design: .monospaced))
                         .textSelection(.enabled)
                 }
+
+                HStack {
+                    Button("Choose Notes Directory") {
+                        appModel.chooseNotesDirectory()
+                    }
+
+                    if appModel.needsNotesDirectorySelection {
+                        Button("Use This Directory") {
+                            appModel.confirmNotesDirectory()
+                        }
+                    }
+                }
+
+                Text("The selected directory is persisted by the app and passed to mw as NOTES_DIR for app-launched commands.")
+                    .font(.caption)
+                    .foregroundStyle(MWTheme.textMuted)
             }
         }
         .formStyle(.grouped)
@@ -124,6 +135,9 @@ struct SettingsView: View {
                 shortcutRow("Toggle Sidebar", keys: "⌘S")
                 shortcutRow("Refresh Notes", keys: "⌘R")
                 shortcutRow("Run mw notes sync", keys: "⇧⌘S")
+                shortcutRow("Increase readability", keys: "⌘+")
+                shortcutRow("Decrease readability", keys: "⌘-")
+                shortcutRow("Reset readability", keys: "⌘0")
                 shortcutRow("Open Settings", keys: "⌘,")
             }
 

@@ -12,7 +12,6 @@ protocol MindWeaverEngine: Sendable {
     func doctor() async throws -> CommandOutput
     func syncNotes() async throws -> CommandOutput
     func validateNotes() async throws -> CommandOutput
-    func rebuildLocalBinary() async throws -> CommandOutput
     func deleteLocalBinary() async throws -> CommandOutput
 }
 

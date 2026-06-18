@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import SwiftUI
@@ -7,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published var notes: [MWNote] = []
     @Published var todos: [MWTodo] = []
     @Published var graph: MWGraph = MWGraph(nodes: [], edges: [], meta: nil)
+    @Published private(set) var graphRevision: Int = 0
     @Published var graphDepth: Int = 1
     @Published var graphLimit: Int = 100_000
     @Published var graphForceStrength: Double = 1.0
@@ -30,20 +32,44 @@ final class AppModel: ObservableObject {
     @Published var commandOutput = ""
     @Published var isWorking = false
     @Published var isComputingGraphLayout = false
+    @Published var readabilityScale: CGFloat = AppModel.loadReadabilityScale() {
+        didSet {
+            let clamped = AppModel.clampReadabilityScale(readabilityScale)
+            if clamped != readabilityScale {
+                readabilityScale = clamped
+                return
+            }
+            UserDefaults.standard.set(Double(readabilityScale), forKey: AppModel.readabilityScaleDefaultsKey)
+        }
+    }
     @Published var notesDirectory: URL
+    @Published var needsNotesDirectorySelection: Bool
     @Published var mwBinaryStatus: MWBinaryStatus = .unresolved
     @Published var externalToolStatuses: [ExternalToolStatus] = ExternalToolCatalog.statuses()
 
+    private static let readabilityScaleDefaultsKey = "readabilityScale"
+    private static let readabilityScaleRange: ClosedRange<CGFloat> = 0.85...1.6
+    private static let readabilityScaleStep: CGFloat = 0.1
+
     private let noteFetchLimit = 5_000
     private let engine: any MindWeaverEngine
+    private var loadedGraphSearch: String?
+    private var loadedGraphDomain: String?
+    private var isClearingFilters = false
 
     init(engine: any MindWeaverEngine = MWCLIEngine()) {
         self.engine = engine
         self.notesDirectory = MindWeaverPaths.notesDirectory()
+        self.needsNotesDirectorySelection = !MindWeaverPaths.hasStoredNotesDirectory()
 
         Task {
             await refreshBinaryStatus()
-            await refreshNotes()
+            if needsNotesDirectorySelection {
+                statusMessage = "Choose notes directory"
+                commandOutput = "Mind Weaver needs a notes directory before running mw commands. Suggested directory: \(notesDirectory.path)"
+            } else {
+                await refreshNotes()
+            }
         }
     }
 
@@ -95,6 +121,10 @@ final class AppModel: ObservableObject {
 
     var isBusy: Bool {
         isWorking || isComputingGraphLayout
+    }
+
+    var readabilityPercentage: Int {
+        Int((readabilityScale * 100).rounded())
     }
 
     var visibleNotes: [MWNote] {
@@ -186,6 +216,12 @@ final class AppModel: ObservableObject {
     }
 
     func refreshNotes() async {
+        guard !needsNotesDirectorySelection else {
+            statusMessage = "Choose notes directory"
+            commandOutput = "Select a notes directory before running mw commands."
+            return
+        }
+
         await runWork("Loading notes") {
             mwBinaryStatus = await engine.binaryStatus()
             externalToolStatuses = ExternalToolCatalog.statuses()
@@ -253,13 +289,6 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func rebuildMWBinary() async {
-        await runCommand("Rebuilding mw via tsync --only mw") {
-            try await engine.rebuildLocalBinary()
-        }
-        await refreshBinaryStatus()
-    }
-
     func deleteLocalMWBinary() async {
         await runCommand("Deleting ~/.local/bin/mw") {
             try await engine.deleteLocalBinary()
@@ -268,6 +297,12 @@ final class AppModel: ObservableObject {
     }
 
     func syncNotes() async {
+        guard !needsNotesDirectorySelection else {
+            statusMessage = "Choose notes directory"
+            commandOutput = "Select a notes directory before running mw notes sync."
+            return
+        }
+
         await runCommand("Running mw notes sync") {
             try await engine.syncNotes()
         }
@@ -275,26 +310,43 @@ final class AppModel: ObservableObject {
     }
 
     func validateNotes() async {
+        guard !needsNotesDirectorySelection else {
+            statusMessage = "Choose notes directory"
+            commandOutput = "Select a notes directory before running mw notes validate --all."
+            return
+        }
+
         await runCommand("Running mw notes validate --all") {
             try await engine.validateNotes()
         }
     }
 
     func refreshGraph() async {
+        guard !needsNotesDirectorySelection else {
+            statusMessage = "Choose notes directory"
+            commandOutput = "Select a notes directory before loading the graph."
+            return
+        }
+
         await runWork("Loading graph") {
+            let search = searchText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+            let domain = graphDomainFilter
             let loaded = try await engine.queryGraph(
-                search: searchText.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
-                domain: graphDomainFilter,
+                search: search,
+                domain: domain,
                 depth: graphDepth,
                 limit: graphLimit
             )
             rebuildGraphIndexes(for: loaded)
             graph = loaded
+            graphRevision += 1
+            loadedGraphSearch = search
+            loadedGraphDomain = domain
             if let graphFocusedNodeID, !loaded.nodes.contains(where: { $0.id == graphFocusedNodeID }) {
                 self.graphFocusedNodeID = nil
             }
             statusMessage = "Loaded graph with \(loaded.nodes.count) nodes and \(loaded.edges.count) edges"
-            commandOutput = "mw query graph --depth \(graphDepth) --limit \(graphLimit)"
+            commandOutput = graphCommandDescription(search: search, domain: domain)
         }
     }
 
@@ -310,6 +362,24 @@ final class AppModel: ObservableObject {
         sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
     }
 
+    func increaseReadability() {
+        adjustReadability(by: Self.readabilityScaleStep)
+    }
+
+    func decreaseReadability() {
+        adjustReadability(by: -Self.readabilityScaleStep)
+    }
+
+    func resetReadability() {
+        readabilityScale = 1.0
+        statusMessage = "Readability reset to 100%"
+    }
+
+    private func adjustReadability(by delta: CGFloat) {
+        readabilityScale = Self.clampReadabilityScale(readabilityScale + delta)
+        statusMessage = "Readability set to \(readabilityPercentage)%"
+    }
+
     func showDashboardView() {
         showDashboard = true
     }
@@ -320,6 +390,31 @@ final class AppModel: ObservableObject {
 
     func setGraphLayoutComputing(_ isComputing: Bool) {
         isComputingGraphLayout = isComputing
+    }
+
+    func confirmNotesDirectory() {
+        guard directoryExists(notesDirectory) else {
+            statusMessage = "Notes directory not found"
+            commandOutput = "Choose an existing notes directory or create one first: \(notesDirectory.path)"
+            return
+        }
+
+        setNotesDirectory(notesDirectory)
+    }
+
+    func chooseNotesDirectory() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose Mind Weaver Notes Directory"
+        panel.message = "Select the Markdown notes directory that mw should read and mutate."
+        panel.prompt = "Use Directory"
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.directoryURL = notesDirectory
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        setNotesDirectory(url)
     }
 
     func focusGraphNode(_ nodeID: String?) {
@@ -487,11 +582,33 @@ final class AppModel: ObservableObject {
         } else {
             selectedDomains.insert(domain)
         }
+
+        refreshGraphIfSelectedDomainsOutgrewLoadedDomain()
     }
 
     func clearFilters() {
+        let graphWasLoadedWithFilters = loadedGraphSearch != nil || loadedGraphDomain != nil
+        let graphViewHasActiveFilters = sidebarMode == .graph
+            && (!searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !selectedDomains.isEmpty)
+        let shouldRefreshGraph = graphWasLoadedWithFilters || graphViewHasActiveFilters
+
+        isClearingFilters = true
         searchText = ""
         selectedDomains = []
+        isClearingFilters = false
+
+        if shouldRefreshGraph {
+            Task { await refreshGraph() }
+        }
+    }
+
+    func refreshGraphIfSearchWasCleared() {
+        guard !isClearingFilters,
+              sidebarMode == .graph,
+              searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              loadedGraphSearch != nil else { return }
+
+        Task { await refreshGraph() }
     }
 
     private func recordViewedNoteID(_ noteID: MWNote.ID) {
@@ -500,6 +617,34 @@ final class AppModel: ObservableObject {
         if lastViewedNoteIDs.count > 50 {
             lastViewedNoteIDs = Array(lastViewedNoteIDs.prefix(50))
         }
+    }
+
+    private func setNotesDirectory(_ url: URL) {
+        let standardized = url.standardizedFileURL
+        guard directoryExists(standardized) else {
+            statusMessage = "Notes directory not found"
+            commandOutput = "Choose an existing notes directory: \(standardized.path)"
+            return
+        }
+
+        MindWeaverPaths.saveNotesDirectory(standardized)
+        notesDirectory = standardized
+        needsNotesDirectorySelection = false
+        notes = []
+        todos = []
+        graph = MWGraph(nodes: [], edges: [], meta: nil)
+        selectedNoteID = nil
+        selectedTodoID = nil
+        selectedTodoIDs = []
+        domainOptions = []
+        statusMessage = "Notes directory set"
+        commandOutput = "NOTES_DIR=\(standardized.path)"
+        Task { await refreshNotes() }
+    }
+
+    private func directoryExists(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     private func todoPriorityRank(_ todo: MWTodo) -> Int {
@@ -537,6 +682,32 @@ final class AppModel: ObservableObject {
         }
 
         return Array(Set(fallbackNotes.flatMap(\.domains))).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    }
+
+    private func refreshGraphIfSelectedDomainsOutgrewLoadedDomain() {
+        guard sidebarMode == .graph,
+              let loadedGraphDomain else { return }
+
+        let loaded = normalizedGraphDomain(loadedGraphDomain)
+        let selected = Set(selectedDomains.map(normalizedGraphDomain))
+        guard selected.count != 1 || !selected.contains(loaded) else { return }
+
+        Task { await refreshGraph() }
+    }
+
+    private func normalizedGraphDomain(_ domain: String) -> String {
+        domain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func graphCommandDescription(search: String?, domain: String?) -> String {
+        var parts = ["mw", "query", "graph", "--depth", String(graphDepth), "--limit", String(graphLimit)]
+        if let search {
+            parts.append(contentsOf: ["--search", search])
+        }
+        if let domain {
+            parts.append(contentsOf: ["--domain", domain])
+        }
+        return parts.joined(separator: " ")
     }
 
     private func rebuildGraphIndexes(for graph: MWGraph) {
@@ -613,6 +784,16 @@ final class AppModel: ObservableObject {
         }
 
         isWorking = false
+    }
+
+    private static func loadReadabilityScale() -> CGFloat {
+        let stored = UserDefaults.standard.double(forKey: readabilityScaleDefaultsKey)
+        guard stored > 0 else { return 1.0 }
+        return clampReadabilityScale(CGFloat(stored))
+    }
+
+    private static func clampReadabilityScale(_ scale: CGFloat) -> CGFloat {
+        min(max(scale, readabilityScaleRange.lowerBound), readabilityScaleRange.upperBound)
     }
 }
 

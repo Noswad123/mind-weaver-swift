@@ -17,6 +17,12 @@ struct ContentView: View {
                     .zIndex(10)
             }
 
+            if appModel.needsNotesDirectorySelection {
+                NotesDirectoryOnboardingView()
+                    .environmentObject(appModel)
+                    .zIndex(20)
+            }
+
             hiddenKeyboardShortcuts
         }
         .foregroundStyle(MWTheme.text)
@@ -123,5 +129,60 @@ struct ContentView: View {
         // the app is launched via `swift run`. Use our retained AppKit settings
         // window directly for the gear button.
         SettingsWindowController.shared.show(appModel: appModel)
+    }
+}
+
+private struct NotesDirectoryOnboardingView: View {
+    @EnvironmentObject private var appModel: AppModel
+
+    var body: some View {
+        ZStack {
+            MWTheme.bgVoid.opacity(0.88)
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 18) {
+                Label("Choose your notes directory", systemImage: "folder.badge.gearshape")
+                    .font(.title2.bold())
+                    .foregroundStyle(MWTheme.emberHot)
+
+                Text("Mind Weaver needs an app-selected Markdown notes directory before it runs mw commands. The app will pass this path to mw as NOTES_DIR.")
+                    .foregroundStyle(MWTheme.text)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Suggested directory")
+                        .font(.caption.bold())
+                        .foregroundStyle(MWTheme.textMuted)
+
+                    Text(appModel.notesDirectory.path)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .foregroundStyle(MWTheme.frostSoft)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(MWTheme.coldFill, in: RoundedRectangle(cornerRadius: 10))
+                }
+
+                HStack {
+                    Button("Choose Directory…") {
+                        appModel.chooseNotesDirectory()
+                    }
+                    .keyboardShortcut(.defaultAction)
+
+                    Button("Use Suggested Directory") {
+                        appModel.confirmNotesDirectory()
+                    }
+
+                    Spacer()
+                }
+            }
+            .padding(28)
+            .frame(width: 560)
+            .background(MWTheme.panelFill, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .stroke(MWTheme.emberHot.opacity(0.35), lineWidth: 1)
+            }
+            .shadow(color: .black.opacity(0.45), radius: 28, y: 12)
+        }
     }
 }

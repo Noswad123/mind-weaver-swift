@@ -41,6 +41,23 @@ struct MindWeaverApp: App {
                     Task { await appModel.syncNotes() }
                 }
                 .keyboardShortcut("s", modifiers: [.command, .shift])
+
+                Divider()
+
+                Button("Increase Readability") {
+                    appModel.increaseReadability()
+                }
+                .keyboardShortcut("+", modifiers: [.command])
+
+                Button("Decrease Readability") {
+                    appModel.decreaseReadability()
+                }
+                .keyboardShortcut("-", modifiers: [.command])
+
+                Button("Reset Readability") {
+                    appModel.resetReadability()
+                }
+                .keyboardShortcut("0", modifiers: [.command])
             }
         }
 

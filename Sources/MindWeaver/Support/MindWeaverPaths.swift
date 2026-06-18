@@ -1,7 +1,31 @@
 import Foundation
 
 enum MindWeaverPaths {
+    private static let notesDirectoryDefaultsKey = "notesDirectory"
+
     static func notesDirectory() -> URL {
+        if let storedNotesDir = storedNotesDirectory() {
+            return storedNotesDir
+        }
+
+        return candidateNotesDirectory()
+    }
+
+    static func hasStoredNotesDirectory() -> Bool {
+        storedNotesDirectory() != nil
+    }
+
+    static func saveNotesDirectory(_ url: URL) {
+        UserDefaults.standard.set(url.standardizedFileURL.path, forKey: notesDirectoryDefaultsKey)
+    }
+
+    private static func storedNotesDirectory() -> URL? {
+        let stored = UserDefaults.standard.string(forKey: notesDirectoryDefaultsKey)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !stored.isEmpty else { return nil }
+        return URL(fileURLWithPath: expandTilde(stored)).standardizedFileURL
+    }
+
+    private static func candidateNotesDirectory() -> URL {
         if let envNotesDir = ProcessInfo.processInfo.environment["NOTES_DIR"], !envNotesDir.isEmpty {
             return URL(fileURLWithPath: expandTilde(envNotesDir)).standardizedFileURL
         }
