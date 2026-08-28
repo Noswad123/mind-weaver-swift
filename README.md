@@ -150,6 +150,48 @@ PRODUCT_BUNDLE_IDENTIFIER = com.example.MindWeaver
 
 `Config/Signing.local.xcconfig` is ignored by git.
 
+## Release after building in Xcode
+
+After Xcode successfully builds/archives the app, export or copy the resulting
+bundle to the expected local archive path:
+
+```text
+~/Projects/mind-weaver-swift/Archive/latest/MindWeaver.app
+```
+
+Then use the Homebrew tap release helper to package and publish the cask release:
+
+```bash
+cd ~/Projects/homebrew-jamal-arcana
+
+scripts/release \
+  --mind-weaver-app ~/Projects/mind-weaver-swift/Archive/latest/MindWeaver.app \
+  --mind-weaver-version 0.2.0 \
+  --upload-mind-weaver-app \
+  --create-mind-weaver-release
+```
+
+Preview the release without mutating GitHub, the tap, or Homebrew:
+
+```bash
+scripts/release --dry-run \
+  --mind-weaver-app ~/Projects/mind-weaver-swift/Archive/latest/MindWeaver.app \
+  --mind-weaver-version 0.2.0 \
+  --upload-mind-weaver-app \
+  --create-mind-weaver-release
+```
+
+The helper validates `MindWeaver.app`, creates `dist/MindWeaver-<version>.zip`,
+computes the SHA256, uploads the GitHub release asset, updates
+`Casks/mind-weaver.rb`, commits/pushes the tap, and syncs the local Homebrew tap.
+
+After release, verify the cask update:
+
+```bash
+brew update
+brew upgrade --cask mind-weaver
+```
+
 ## App icon
 
 For the Xcode macOS app target, generate the app icon from a square 1024×1024
