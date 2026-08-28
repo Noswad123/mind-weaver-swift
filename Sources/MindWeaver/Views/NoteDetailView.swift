@@ -223,7 +223,88 @@ struct MarkdownPreview: View {
                 .fill(MWTheme.frostSoft.opacity(0.28))
                 .frame(height: 1)
                 .padding(.vertical, 8)
+
+        case .table(let headers, let alignments, let rows):
+            tableView(headers: headers, alignments: alignments, rows: rows)
         }
+    }
+
+    private func tableView(headers: [String], alignments: [MarkdownTableAlignment], rows: [[String]]) -> some View {
+        ScrollView(.horizontal) {
+            Grid(horizontalSpacing: 0, verticalSpacing: 0) {
+                GridRow {
+                    ForEach(headers.indices, id: \.self) { column in
+                        tableCell(
+                            headers[column],
+                            column: column,
+                            alignments: alignments,
+                            isHeader: true,
+                            isAlternateRow: false
+                        )
+                    }
+                }
+
+                ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, row in
+                    GridRow {
+                        ForEach(headers.indices, id: \.self) { column in
+                            tableCell(
+                                column < row.count ? row[column] : "",
+                                column: column,
+                                alignments: alignments,
+                                isHeader: false,
+                                isAlternateRow: rowIndex.isMultiple(of: 2)
+                            )
+                        }
+                    }
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(MWTheme.frostSoft.opacity(0.24), lineWidth: 1)
+            }
+            .padding(.vertical, 4)
+        }
+    }
+
+    private func tableCell(
+        _ text: String,
+        column: Int,
+        alignments: [MarkdownTableAlignment],
+        isHeader: Bool,
+        isAlternateRow: Bool
+    ) -> some View {
+        inlineText(text)
+            .font(markdownFont(size: isHeader ? 13 : 12.5, weight: isHeader ? .semibold : .regular))
+            .textSelection(.enabled)
+            .lineLimit(nil)
+            .padding(.horizontal, 10)
+            .padding(.vertical, isHeader ? 8 : 7)
+            .frame(minWidth: 96, maxWidth: 280, alignment: frameAlignment(for: alignments[safe: column] ?? .leading))
+            .background(tableCellBackground(isHeader: isHeader, isAlternateRow: isAlternateRow))
+            .overlay(alignment: .trailing) {
+                Rectangle()
+                    .fill(MWTheme.frostSoft.opacity(0.12))
+                    .frame(width: 1)
+            }
+            .overlay(alignment: .bottom) {
+                Rectangle()
+                    .fill(MWTheme.frostSoft.opacity(isHeader ? 0.24 : 0.10))
+                    .frame(height: 1)
+            }
+    }
+
+    private func frameAlignment(for alignment: MarkdownTableAlignment) -> Alignment {
+        switch alignment {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+    }
+
+    private func tableCellBackground(isHeader: Bool, isAlternateRow: Bool) -> Color {
+        if isHeader { return MWTheme.bgPanel2.opacity(0.86) }
+        return isAlternateRow ? MWTheme.bgPanel.opacity(0.78) : MWTheme.steel.opacity(0.42)
     }
 
     private func listItem(marker: String, text: String, level: Int) -> some View {
@@ -409,7 +490,13 @@ private struct MarkdownInline: Hashable {
     }
 }
 
-enum MarkdownBlock: Hashable {
+private enum MarkdownTableAlignment: Hashable {
+    case leading
+    case center
+    case trailing
+}
+
+private enum MarkdownBlock: Hashable {
     case heading(level: Int, text: String)
     case bullet(level: Int, text: String)
     case numberedListItem(level: Int, number: Int, text: String)
@@ -418,6 +505,7 @@ enum MarkdownBlock: Hashable {
     case code(language: String?, text: String)
     case quote(String)
     case horizontalRule
+    case table(headers: [String], alignments: [MarkdownTableAlignment], rows: [[String]])
 
     static func parse(_ markdown: String) -> [MarkdownBlock] {
         let lines = stripFrontmatter(markdown).components(separatedBy: .newlines)
@@ -441,7 +529,9 @@ enum MarkdownBlock: Hashable {
             codeLanguage = nil
         }
 
-        for line in lines {
+        var lineIndex = 0
+        while lineIndex < lines.count {
+            let line = lines[lineIndex]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             if trimmed.hasPrefix("```") {
@@ -454,50 +544,66 @@ enum MarkdownBlock: Hashable {
                     let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
                     codeLanguage = language.isEmpty ? nil : language
                 }
+                lineIndex += 1
                 continue
             }
 
             if inCodeBlock {
                 codeLines.append(line)
+                lineIndex += 1
                 continue
             }
 
             if trimmed.isEmpty {
                 flushParagraph()
+                lineIndex += 1
+                continue
+            }
+
+            if let table = parseTable(lines: lines, startIndex: lineIndex) {
+                flushParagraph()
+                blocks.append(table.block)
+                lineIndex = table.nextIndex
                 continue
             }
 
             if let heading = parseHeading(trimmed) {
                 flushParagraph()
                 blocks.append(heading)
+                lineIndex += 1
                 continue
             }
 
             if let bullet = parseBullet(line) {
                 flushParagraph()
                 blocks.append(bullet)
+                lineIndex += 1
                 continue
             }
 
             if let numberedListItem = parseNumberedListItem(line) {
                 flushParagraph()
                 blocks.append(numberedListItem)
+                lineIndex += 1
                 continue
             }
 
             if isHorizontalRule(trimmed) {
                 flushParagraph()
                 blocks.append(.horizontalRule)
+                lineIndex += 1
                 continue
             }
 
             if trimmed.hasPrefix(">") {
                 flushParagraph()
                 blocks.append(.quote(String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)))
+                lineIndex += 1
                 continue
             }
 
             paragraphLines.append(trimmed)
+            lineIndex += 1
         }
 
         flushParagraph()
@@ -574,6 +680,106 @@ enum MarkdownBlock: Hashable {
         return .numberedListItem(level: level, number: number, text: text)
     }
 
+    private static func parseTable(lines: [String], startIndex: Int) -> (block: MarkdownBlock, nextIndex: Int)? {
+        guard startIndex + 1 < lines.count else { return nil }
+
+        let headerLine = lines[startIndex].trimmingCharacters(in: .whitespaces)
+        let separatorLine = lines[startIndex + 1].trimmingCharacters(in: .whitespaces)
+        guard headerLine.contains("|"), separatorLine.contains("|") else { return nil }
+
+        let headers = splitTableRow(headerLine)
+        guard headers.count >= 2 else { return nil }
+
+        guard let alignments = parseTableSeparator(separatorLine), alignments.count >= 2 else { return nil }
+
+        let columnCount = max(headers.count, alignments.count)
+        var rows: [[String]] = []
+        var index = startIndex + 2
+
+        while index < lines.count {
+            let line = lines[index].trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty, line.contains("|") else { break }
+            guard parseTableSeparator(line) == nil else { break }
+
+            let cells = normalizedTableRow(splitTableRow(line), columnCount: columnCount)
+            rows.append(cells)
+            index += 1
+        }
+
+        let normalizedHeaders = normalizedTableRow(headers, columnCount: columnCount)
+        let normalizedAlignments = normalizedTableAlignments(alignments, columnCount: columnCount)
+        return (.table(headers: normalizedHeaders, alignments: normalizedAlignments, rows: rows), index)
+    }
+
+    private static func splitTableRow(_ line: String) -> [String] {
+        var trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("|") {
+            trimmed.removeFirst()
+        }
+        if trimmed.hasSuffix("|") {
+            trimmed.removeLast()
+        }
+
+        return trimmed
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .map { cell in
+                String(cell)
+                    .replacingOccurrences(of: "\\|", with: "|")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+    }
+
+    private static func parseTableSeparator(_ line: String) -> [MarkdownTableAlignment]? {
+        let cells = splitTableRow(line)
+        guard cells.count >= 2 else { return nil }
+
+        var alignments: [MarkdownTableAlignment] = []
+        for cell in cells {
+            let compact = cell.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard isTableSeparatorCell(compact) else { return nil }
+
+            let leadingColon = compact.hasPrefix(":")
+            let trailingColon = compact.hasSuffix(":")
+            if leadingColon && trailingColon {
+                alignments.append(.center)
+            } else if trailingColon {
+                alignments.append(.trailing)
+            } else {
+                alignments.append(.leading)
+            }
+        }
+
+        return alignments
+    }
+
+    private static func isTableSeparatorCell(_ cell: String) -> Bool {
+        guard cell.count >= 3 else { return false }
+        var dashCount = 0
+        for character in cell {
+            if character == "-" {
+                dashCount += 1
+                continue
+            }
+            if character == ":" {
+                continue
+            }
+            return false
+        }
+        return dashCount >= 3
+    }
+
+    private static func normalizedTableRow(_ cells: [String], columnCount: Int) -> [String] {
+        if cells.count == columnCount { return cells }
+        if cells.count > columnCount { return Array(cells.prefix(columnCount)) }
+        return cells + Array(repeating: "", count: columnCount - cells.count)
+    }
+
+    private static func normalizedTableAlignments(_ alignments: [MarkdownTableAlignment], columnCount: Int) -> [MarkdownTableAlignment] {
+        if alignments.count == columnCount { return alignments }
+        if alignments.count > columnCount { return Array(alignments.prefix(columnCount)) }
+        return alignments + Array(repeating: .leading, count: columnCount - alignments.count)
+    }
+
     private static func parseTaskText(_ text: String, level: Int) -> MarkdownBlock? {
         let lower = text.lowercased()
         if lower.hasPrefix("[ ] ") {
@@ -592,5 +798,11 @@ enum MarkdownBlock: Hashable {
         return compact.allSatisfy { $0 == "-" }
             || compact.allSatisfy { $0 == "*" }
             || compact.allSatisfy { $0 == "_" }
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
