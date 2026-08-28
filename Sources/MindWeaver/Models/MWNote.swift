@@ -34,12 +34,12 @@ struct MWNote: Identifiable, Hashable, Codable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: FlexibleCodingKey.self)
 
-        let id = container.decodeFlexibleString(for: ["id", "ID"])
-            ?? container.decodeFlexibleString(for: ["uid", "UID"])
+        let id = container.decodeFlexibleString(for: ["id", "ID", "Id"])
+            ?? container.decodeFlexibleString(for: ["uid", "UID", "Uid"])
             ?? UUID().uuidString
 
         self.id = id
-        self.uid = container.decodeFlexibleString(for: ["uid", "UID"])
+        self.uid = container.decodeFlexibleString(for: ["uid", "UID", "Uid"])
         self.path = container.decodeFlexibleString(for: ["path", "Path"])
         self.title = container.decodeFlexibleString(for: ["title", "Title"]) ?? "Untitled"
         self.content = container.decodeFlexibleString(for: ["content", "Content"]) ?? ""

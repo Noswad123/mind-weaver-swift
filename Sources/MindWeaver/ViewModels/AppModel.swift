@@ -32,6 +32,12 @@ final class AppModel: ObservableObject {
     @Published var commandOutput = ""
     @Published var isWorking = false
     @Published var isComputingGraphLayout = false
+    @Published var markdownWorkspace: MarkdownWorkspace?
+    @Published var markdownFileTree: [MarkdownFileNode] = []
+    @Published var selectedMarkdownFileURL: URL?
+    @Published var markdownEditorText = ""
+    @Published private(set) var markdownLastSavedText = ""
+    @Published var markdownEditorDisplayMode: MarkdownEditorDisplayMode = .split
     @Published var readabilityScale: CGFloat = AppModel.loadReadabilityScale() {
         didSet {
             let clamped = AppModel.clampReadabilityScale(readabilityScale)
@@ -125,6 +131,28 @@ final class AppModel: ObservableObject {
 
     var isBusy: Bool {
         isWorking || isComputingGraphLayout
+    }
+
+    var isMarkdownWorkspace: Bool {
+        markdownWorkspace != nil
+    }
+
+    var selectedMarkdownFileName: String {
+        selectedMarkdownFileURL?.lastPathComponent ?? "No Markdown file selected"
+    }
+
+    var selectedMarkdownDisplayPath: String {
+        selectedMarkdownFileURL?.path.replacingOccurrences(of: NSHomeDirectory(), with: "~")
+            ?? markdownWorkspace?.displayPath
+            ?? ""
+    }
+
+    var isMarkdownDirty: Bool {
+        markdownEditorText != markdownLastSavedText
+    }
+
+    var canSaveMarkdownDocument: Bool {
+        selectedMarkdownFileURL != nil && isMarkdownDirty
     }
 
     var readabilityPercentage: Int {
@@ -381,6 +409,40 @@ final class AppModel: ObservableObject {
         sidebarVisibility = sidebarVisibility == .detailOnly ? .all : .detailOnly
     }
 
+    func focusMarkdownSourceEditor() {
+        markdownEditorDisplayMode = .source
+        showDashboard = false
+        statusMessage = "Focused Markdown editor"
+    }
+
+    func focusMarkdownPreview() {
+        markdownEditorDisplayMode = .preview
+        showDashboard = false
+        statusMessage = "Focused rendered Markdown"
+    }
+
+    func toggleMarkdownPreviewFocus() {
+        if markdownEditorDisplayMode == .preview {
+            splitMarkdownEditorAndPreview()
+        } else {
+            focusMarkdownPreview()
+        }
+    }
+
+    func toggleMarkdownSourceFocus() {
+        if markdownEditorDisplayMode == .source {
+            splitMarkdownEditorAndPreview()
+        } else {
+            focusMarkdownSourceEditor()
+        }
+    }
+
+    func splitMarkdownEditorAndPreview() {
+        markdownEditorDisplayMode = .split
+        showDashboard = false
+        statusMessage = "Split Markdown editor and preview"
+    }
+
     func increaseReadability() {
         adjustReadability(by: Self.readabilityScaleStep)
     }
@@ -394,9 +456,239 @@ final class AppModel: ObservableObject {
         statusMessage = "Readability reset to 100%"
     }
 
+    func openMarkdownWorkspace() {
+        guard confirmDiscardUnsavedMarkdownChanges() else { return }
+
+        let panel = NSOpenPanel()
+        panel.title = "Open Markdown File or Folder"
+        panel.message = "Choose a Markdown file or a folder containing Markdown files. This will not change your default Mind Weaver notes directory."
+        panel.prompt = "Open"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        openMarkdownWorkspace(at: url)
+    }
+
+    func openDefaultNotesWorkspace() {
+        guard confirmDiscardUnsavedMarkdownChanges() else { return }
+        markdownWorkspace = nil
+        markdownFileTree = []
+        selectedMarkdownFileURL = nil
+        markdownEditorText = ""
+        markdownLastSavedText = ""
+        statusMessage = "Default notes workspace"
+        if notes.isEmpty, !needsNotesDirectorySelection {
+            Task { await refreshNotes() }
+        }
+    }
+
+    func selectMarkdownFile(_ url: URL) {
+        guard confirmDiscardUnsavedMarkdownChanges() else { return }
+        loadMarkdownDocument(url.standardizedFileURL)
+    }
+
+    func saveMarkdownDocument() {
+        guard let selectedMarkdownFileURL else { return }
+
+        do {
+            try markdownEditorText.write(to: selectedMarkdownFileURL, atomically: true, encoding: .utf8)
+            markdownLastSavedText = markdownEditorText
+            statusMessage = "Saved \(selectedMarkdownFileURL.lastPathComponent)"
+            commandOutput = selectedMarkdownFileURL.path
+        } catch {
+            statusMessage = "Save failed"
+            commandOutput = error.localizedDescription
+        }
+    }
+
+    @discardableResult
+    func openMarkdownLink(target rawTarget: String) -> Bool {
+        guard let linkedFileURL = resolveMarkdownLink(target: rawTarget) else {
+            let target = normalizedNoteLinkTarget(rawTarget)
+            statusMessage = "Markdown link not found"
+            commandOutput = target.isEmpty ? rawTarget : target
+            return false
+        }
+
+        guard confirmDiscardUnsavedMarkdownChanges() else { return false }
+        loadMarkdownDocument(linkedFileURL)
+        return true
+    }
+
     private func adjustReadability(by delta: CGFloat) {
         readabilityScale = Self.clampReadabilityScale(readabilityScale + delta)
         statusMessage = "Readability set to \(readabilityPercentage)%"
+    }
+
+    private func openMarkdownWorkspace(at url: URL) {
+        let standardized = url.standardizedFileURL
+        var isDirectory: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory)
+        guard exists else {
+            statusMessage = "Markdown path not found"
+            commandOutput = standardized.path
+            return
+        }
+
+        let workspace = MarkdownWorkspace(kind: isDirectory.boolValue ? .folder : .file, rootURL: standardized)
+
+        do {
+            let tree = try MarkdownFileNode.tree(for: workspace)
+            guard let firstFile = MarkdownFileNode.firstMarkdownFile(in: tree) else {
+                statusMessage = "No Markdown files found"
+                commandOutput = "No .md or .markdown files found in \(workspace.displayPath)."
+                return
+            }
+
+            markdownWorkspace = workspace
+            markdownFileTree = tree
+            showDashboard = false
+            sidebarMode = .files
+            loadMarkdownDocument(firstFile)
+            statusMessage = workspace.kind == .folder ? "Opened Markdown folder" : "Opened Markdown file"
+            commandOutput = workspace.displayPath
+        } catch {
+            statusMessage = "Open failed"
+            commandOutput = error.localizedDescription
+        }
+    }
+
+    private func loadMarkdownDocument(_ url: URL) {
+        do {
+            let content = try String(contentsOf: url, encoding: .utf8)
+            selectedMarkdownFileURL = url.standardizedFileURL
+            markdownEditorText = content
+            markdownLastSavedText = content
+            statusMessage = "Loaded \(url.lastPathComponent)"
+            commandOutput = url.path
+        } catch {
+            selectedMarkdownFileURL = nil
+            markdownEditorText = ""
+            markdownLastSavedText = ""
+            statusMessage = "Could not load Markdown file"
+            commandOutput = error.localizedDescription
+        }
+    }
+
+    private func resolveMarkdownLink(target rawTarget: String) -> URL? {
+        guard let workspace = markdownWorkspace,
+              let selectedMarkdownFileURL else { return nil }
+
+        let target = normalizedNoteLinkTarget(rawTarget)
+            .replacingOccurrences(of: "\\", with: "/")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !target.isEmpty else { return nil }
+
+        if let fileURL = URL(string: target), fileURL.isFileURL {
+            return markdownFileExists(fileURL) ? fileURL.standardizedFileURL : nil
+        }
+
+        guard !isExternalLinkTarget(target) else { return nil }
+
+        let sourceDirectory = selectedMarkdownFileURL.deletingLastPathComponent()
+        let workspaceBase = workspace.kind == .folder ? workspace.rootURL : workspace.rootURL.deletingLastPathComponent()
+        let candidateBases: [URL]
+        if target.hasPrefix("/") {
+            candidateBases = [URL(fileURLWithPath: target)]
+        } else {
+            candidateBases = [
+                sourceDirectory.appendingPathComponent(target),
+                workspaceBase.appendingPathComponent(target),
+            ]
+        }
+
+        for candidate in candidateBases {
+            if let resolved = resolveMarkdownCandidate(candidate) {
+                return resolved
+            }
+        }
+
+        return resolveMarkdownWikilinkLikeTarget(target)
+    }
+
+    private func resolveMarkdownCandidate(_ candidate: URL) -> URL? {
+        let standardized = candidate.standardizedFileURL
+
+        if markdownFileExists(standardized) {
+            return standardized
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: standardized.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            for indexName in ["README.md", "readme.md", "index.md"] {
+                let indexURL = standardized.appendingPathComponent(indexName)
+                if markdownFileExists(indexURL) {
+                    return indexURL.standardizedFileURL
+                }
+            }
+        }
+
+        guard standardized.pathExtension.isEmpty else { return nil }
+        for ext in ["md", "markdown"] {
+            let withExtension = standardized.appendingPathExtension(ext)
+            if markdownFileExists(withExtension) {
+                return withExtension.standardizedFileURL
+            }
+        }
+
+        return nil
+    }
+
+    private func resolveMarkdownWikilinkLikeTarget(_ target: String) -> URL? {
+        let normalizedTarget = normalizePath(target).lowercased()
+        let targetBasename = URL(fileURLWithPath: normalizedTarget).lastPathComponent
+        let targetStem = stripMarkdownFileExtension(targetBasename)
+
+        return allMarkdownFileURLs(in: markdownFileTree).first { url in
+            let normalizedPath = normalizePath(url.path).lowercased()
+            let basename = url.lastPathComponent.lowercased()
+            let stem = stripMarkdownFileExtension(basename)
+            return normalizedPath == normalizedTarget
+                || normalizedPath.hasSuffix("/\(normalizedTarget)")
+                || basename == targetBasename
+                || stem == targetStem
+        }
+    }
+
+    private func allMarkdownFileURLs(in nodes: [MarkdownFileNode]) -> [URL] {
+        nodes.flatMap { node -> [URL] in
+            if node.isFolder {
+                return allMarkdownFileURLs(in: node.children ?? [])
+            }
+            return [node.url.standardizedFileURL]
+        }
+    }
+
+    private func markdownFileExists(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        guard ext == "md" || ext == "markdown" else { return false }
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.standardizedFileURL.path, isDirectory: &isDirectory) && !isDirectory.boolValue
+    }
+
+    private func confirmDiscardUnsavedMarkdownChanges() -> Bool {
+        guard isMarkdownDirty else { return true }
+
+        let alert = NSAlert()
+        alert.messageText = "Discard unsaved changes?"
+        alert.informativeText = "\(selectedMarkdownFileName) has unsaved changes. Save them before continuing?"
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Discard")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            saveMarkdownDocument()
+            return !isMarkdownDirty
+        case .alertSecondButtonReturn:
+            return true
+        default:
+            return false
+        }
     }
 
     func showDashboardView() {
@@ -924,4 +1216,14 @@ private func normalizePath(_ path: String) -> String {
 
 private func stripMarkdownExtension(_ value: String) -> String {
     value.hasSuffix(".md") ? String(value.dropLast(3)) : value
+}
+
+private func stripMarkdownFileExtension(_ value: String) -> String {
+    if value.hasSuffix(".markdown") {
+        return String(value.dropLast(9))
+    }
+    if value.hasSuffix(".md") {
+        return String(value.dropLast(3))
+    }
+    return value
 }

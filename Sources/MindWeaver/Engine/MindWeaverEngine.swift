@@ -62,7 +62,7 @@ struct MWCapabilityCheck: Identifiable, Hashable, Sendable {
 }
 
 enum MindWeaverRequirements {
-    static let minimumMWVersion = "0.1.2"
+    static let minimumMWVersion = "0.1.0"
 }
 
 enum MindWeaverEngineError: LocalizedError, Sendable {

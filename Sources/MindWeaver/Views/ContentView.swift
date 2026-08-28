@@ -10,18 +10,18 @@ struct ContentView: View {
 
             themedShell
 
-            if appModel.showDashboard {
+            if appModel.showDashboard && !appModel.isMarkdownWorkspace {
                 DashboardView()
                     .environmentObject(appModel)
                     .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .move(edge: .top).combined(with: .opacity)))
                     .zIndex(10)
             }
 
-            if appModel.needsNotesDirectorySelection {
+            if !appModel.isMarkdownWorkspace && appModel.needsNotesDirectorySelection {
                 NotesDirectoryOnboardingView()
                     .environmentObject(appModel)
                     .zIndex(20)
-            } else if !appModel.readinessReport.checks.isEmpty, !appModel.readinessReport.isReady {
+            } else if !appModel.isMarkdownWorkspace, !appModel.readinessReport.checks.isEmpty, !appModel.readinessReport.isReady {
                 MWReadinessIssueView(openSettings: openSettings)
                     .environmentObject(appModel)
                     .zIndex(20)
@@ -43,9 +43,15 @@ struct ContentView: View {
             }
 
             NavigationSplitView(columnVisibility: $appModel.sidebarVisibility) {
-                NoteSidebarView()
+                if appModel.isMarkdownWorkspace {
+                    MarkdownWorkspaceSidebarView()
+                } else {
+                    NoteSidebarView()
+                }
             } detail: {
-                if appModel.sidebarMode == .graph {
+                if appModel.isMarkdownWorkspace {
+                    MarkdownEditorView()
+                } else if appModel.sidebarMode == .graph {
                     GraphPlaceholderView()
                 } else if appModel.sidebarMode == .todos {
                     TodoInspectorView()
@@ -67,12 +73,23 @@ struct ContentView: View {
                         .tint(MWTheme.frostSoft)
                 }
 
-                Button("Sync") {
-                    Task { await appModel.syncNotes() }
-                }
+                if appModel.isMarkdownWorkspace {
+                    Button(appModel.canSaveMarkdownDocument ? "Save" : "Saved") {
+                        appModel.saveMarkdownDocument()
+                    }
+                    .disabled(!appModel.canSaveMarkdownDocument)
 
-                Button("Validate") {
-                    Task { await appModel.validateNotes() }
+                    Button("Default Notes") {
+                        appModel.openDefaultNotesWorkspace()
+                    }
+                } else {
+                    Button("Sync") {
+                        Task { await appModel.syncNotes() }
+                    }
+
+                    Button("Validate") {
+                        Task { await appModel.validateNotes() }
+                    }
                 }
 
                 Button {

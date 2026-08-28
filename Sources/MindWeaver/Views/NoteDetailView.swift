@@ -77,9 +77,18 @@ struct NoteDetailView: View {
 struct MarkdownPreview: View {
     @EnvironmentObject private var appModel: AppModel
 
-    var note: MWNote
+    var note: MWNote?
+    var markdown: String
 
-    private var markdown: String { note.content }
+    init(note: MWNote) {
+        self.note = note
+        self.markdown = note.content
+    }
+
+    init(markdown: String) {
+        self.note = nil
+        self.markdown = markdown
+    }
 
     private var blocks: [MarkdownBlock] {
         MarkdownBlock.parse(markdown)
@@ -119,13 +128,20 @@ struct MarkdownPreview: View {
         .foregroundStyle(MWTheme.text)
         .tint(MWTheme.frostSoft)
         .environment(\.openURL, OpenURLAction { url in
-            guard url.scheme == "mindweaver-note",
-                  let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                   let target = components.queryItems?.first(where: { $0.name == "target" })?.value else {
                 return .systemAction
             }
 
-            return appModel.openNoteLink(target: target, from: note) ? .handled : .discarded
+            if url.scheme == "mindweaver-note", let note {
+                return appModel.openNoteLink(target: target, from: note) ? .handled : .discarded
+            }
+
+            if url.scheme == "mindweaver-markdown" {
+                return appModel.openMarkdownLink(target: target) ? .handled : .discarded
+            }
+
+            return .systemAction
         })
     }
 
@@ -141,10 +157,18 @@ struct MarkdownPreview: View {
                 .padding(.top, level == 1 ? 8 : 4)
 
         case .bullet(let level, let text):
+            listItem(marker: "•", text: text, level: level)
+
+        case .numberedListItem(let level, let number, let text):
+            listItem(marker: "\(number).", text: text, level: level)
+
+        case .task(let level, let isDone, let text):
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("•")
-                    .foregroundStyle(MWTheme.frostSoft)
+                Image(systemName: isDone ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(isDone ? MWTheme.emberHot : MWTheme.frostSoft)
                 inlineText(text)
+                    .strikethrough(isDone)
+                    .foregroundStyle(isDone ? MWTheme.textMuted : MWTheme.text)
                     .textSelection(.enabled)
             }
             .font(markdownFont(size: 14))
@@ -156,17 +180,30 @@ struct MarkdownPreview: View {
                 .lineSpacing(4 * appModel.readabilityScale)
                 .textSelection(.enabled)
 
-        case .code(let text):
-            Text(text)
-                .font(markdownFont(size: 13, design: .monospaced))
-                .textSelection(.enabled)
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(MWTheme.frostSoft.opacity(0.20), lineWidth: 1)
+        case .code(let language, let text):
+            VStack(alignment: .leading, spacing: 0) {
+                if let language, !language.isEmpty {
+                    Text(language)
+                        .font(markdownFont(size: 11, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(MWTheme.frostSoft)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(MWTheme.bgPanel2.opacity(0.72))
                 }
+
+                Text(text)
+                    .font(markdownFont(size: 13, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(MWTheme.frostSoft.opacity(0.20), lineWidth: 1)
+            }
 
         case .quote(let text):
             inlineText(text)
@@ -180,7 +217,26 @@ struct MarkdownPreview: View {
                         .fill(MWTheme.emberHot.opacity(0.45))
                         .frame(width: 3)
                 }
+
+        case .horizontalRule:
+            Rectangle()
+                .fill(MWTheme.frostSoft.opacity(0.28))
+                .frame(height: 1)
+                .padding(.vertical, 8)
         }
+    }
+
+    private func listItem(marker: String, text: String, level: Int) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(marker)
+                .font(markdownFont(size: 14, weight: .semibold))
+                .foregroundStyle(MWTheme.frostSoft)
+                .frame(minWidth: marker == "•" ? 10 : 24, alignment: .trailing)
+            inlineText(text)
+                .textSelection(.enabled)
+        }
+        .font(markdownFont(size: 14))
+        .padding(.leading, CGFloat(level) * 18)
     }
 
     private func font(forHeadingLevel level: Int) -> Font {
@@ -208,6 +264,14 @@ struct MarkdownPreview: View {
             return external
         }
 
+        if note == nil {
+            var components = URLComponents()
+            components.scheme = "mindweaver-markdown"
+            components.host = "open"
+            components.queryItems = [URLQueryItem(name: "target", value: target)]
+            return components.url
+        }
+
         var components = URLComponents()
         components.scheme = "mindweaver-note"
         components.host = "open"
@@ -233,6 +297,9 @@ private struct MarkdownInlineText: View {
     private var attributedText: AttributedString {
         inlines.reduce(into: AttributedString()) { output, inline in
             var piece = AttributedString(inline.label)
+            if inline.isCode {
+                piece.inlinePresentationIntent = .code
+            }
             if let target = inline.target,
                let url = urlBuilder(target, inline.isWikiLink) {
                 piece.link = url
@@ -266,13 +333,18 @@ private struct MarkdownInline: Hashable {
     var label: String
     var target: String?
     var isWikiLink: Bool
+    var isCode: Bool
 
     static func text(_ value: String) -> MarkdownInline {
-        MarkdownInline(label: value, target: nil, isWikiLink: false)
+        MarkdownInline(label: value, target: nil, isWikiLink: false, isCode: false)
+    }
+
+    static func code(_ value: String) -> MarkdownInline {
+        MarkdownInline(label: value, target: nil, isWikiLink: false, isCode: true)
     }
 
     static func link(label: String, target: String, isWikiLink: Bool) -> MarkdownInline {
-        MarkdownInline(label: label, target: target, isWikiLink: isWikiLink)
+        MarkdownInline(label: label, target: target, isWikiLink: isWikiLink, isCode: false)
     }
 
     static func parse(_ text: String) -> [MarkdownInline] {
@@ -286,6 +358,16 @@ private struct MarkdownInline: Hashable {
         }
 
         while index < text.endIndex {
+            if text[index] == "`",
+               let close = text[text.index(after: index)...].firstIndex(of: "`") {
+                flushPlain(upTo: index)
+                let codeStart = text.index(after: index)
+                output.append(.code(String(text[codeStart..<close])))
+                index = text.index(after: close)
+                plainStart = index
+                continue
+            }
+
             if text[index...].hasPrefix("[["),
                let close = text[index...].range(of: "]]") {
                 flushPlain(upTo: index)
@@ -330,9 +412,12 @@ private struct MarkdownInline: Hashable {
 enum MarkdownBlock: Hashable {
     case heading(level: Int, text: String)
     case bullet(level: Int, text: String)
+    case numberedListItem(level: Int, number: Int, text: String)
+    case task(level: Int, isDone: Bool, text: String)
     case paragraph(String)
-    case code(String)
+    case code(language: String?, text: String)
     case quote(String)
+    case horizontalRule
 
     static func parse(_ markdown: String) -> [MarkdownBlock] {
         let lines = stripFrontmatter(markdown).components(separatedBy: .newlines)
@@ -340,6 +425,7 @@ enum MarkdownBlock: Hashable {
         var paragraphLines: [String] = []
         var codeLines: [String] = []
         var inCodeBlock = false
+        var codeLanguage: String?
 
         func flushParagraph() {
             let text = paragraphLines.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -350,8 +436,9 @@ enum MarkdownBlock: Hashable {
         }
 
         func flushCode() {
-            blocks.append(.code(codeLines.joined(separator: "\n")))
+            blocks.append(.code(language: codeLanguage, text: codeLines.joined(separator: "\n")))
             codeLines.removeAll()
+            codeLanguage = nil
         }
 
         for line in lines {
@@ -364,6 +451,8 @@ enum MarkdownBlock: Hashable {
                     inCodeBlock = false
                 } else {
                     inCodeBlock = true
+                    let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    codeLanguage = language.isEmpty ? nil : language
                 }
                 continue
             }
@@ -387,6 +476,18 @@ enum MarkdownBlock: Hashable {
             if let bullet = parseBullet(line) {
                 flushParagraph()
                 blocks.append(bullet)
+                continue
+            }
+
+            if let numberedListItem = parseNumberedListItem(line) {
+                flushParagraph()
+                blocks.append(numberedListItem)
+                continue
+            }
+
+            if isHorizontalRule(trimmed) {
+                flushParagraph()
+                blocks.append(.horizontalRule)
                 continue
             }
 
@@ -443,6 +544,53 @@ enum MarkdownBlock: Hashable {
         let leadingSpaces = line.prefix { $0 == " " || $0 == "\t" }.count
         let level = max(0, leadingSpaces / 2)
         let text = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+
+        if let task = parseTaskText(text, level: level) {
+            return task
+        }
+
         return .bullet(level: level, text: text)
+    }
+
+    private static func parseNumberedListItem(_ line: String) -> MarkdownBlock? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard let dot = trimmed.firstIndex(of: ".") else { return nil }
+
+        let numberPart = trimmed[..<dot]
+        guard !numberPart.isEmpty, numberPart.allSatisfy(\.isNumber), let number = Int(numberPart) else { return nil }
+
+        let afterDot = trimmed.index(after: dot)
+        guard afterDot < trimmed.endIndex, trimmed[afterDot] == " " else { return nil }
+
+        let leadingSpaces = line.prefix { $0 == " " || $0 == "\t" }.count
+        let level = max(0, leadingSpaces / 2)
+        let textStart = trimmed.index(after: afterDot)
+        let text = String(trimmed[textStart...]).trimmingCharacters(in: .whitespaces)
+
+        if let task = parseTaskText(text, level: level) {
+            return task
+        }
+
+        return .numberedListItem(level: level, number: number, text: text)
+    }
+
+    private static func parseTaskText(_ text: String, level: Int) -> MarkdownBlock? {
+        let lower = text.lowercased()
+        if lower.hasPrefix("[ ] ") {
+            return .task(level: level, isDone: false, text: String(text.dropFirst(4)).trimmingCharacters(in: .whitespaces))
+        }
+        if lower.hasPrefix("[x] ") {
+            return .task(level: level, isDone: true, text: String(text.dropFirst(4)).trimmingCharacters(in: .whitespaces))
+        }
+        return nil
+    }
+
+    private static func isHorizontalRule(_ trimmed: String) -> Bool {
+        guard trimmed.count >= 3 else { return false }
+        let compact = trimmed.filter { !$0.isWhitespace }
+        guard compact.count >= 3 else { return false }
+        return compact.allSatisfy { $0 == "-" }
+            || compact.allSatisfy { $0 == "*" }
+            || compact.allSatisfy { $0 == "_" }
     }
 }
