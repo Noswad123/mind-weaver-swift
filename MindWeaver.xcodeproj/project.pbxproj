@@ -16,6 +16,8 @@
 		1C3EAED62FE0DAA8003CEB24 /* MWNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB52FE0D901003CEB24 /* MWNote.swift */; };
 		1C3EAED72FE0DAA8003CEB24 /* SidebarMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB72FE0D901003CEB24 /* SidebarMode.swift */; };
 		1C3EAED82FE0DAA8003CEB24 /* FileNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEB32FE0D901003CEB24 /* FileNode.swift */; };
+		1C3EAF142FE30000003CEB24 /* MarkdownWorkspace.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAF102FE30000003CEB24 /* MarkdownWorkspace.swift */; };
+		1C3EAF152FE30000003CEB24 /* MarkdownEditorDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAF112FE30000003CEB24 /* MarkdownEditorDisplayMode.swift */; };
 		1C3EAED92FE0DAB8003CEB24 /* FlexibleCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBC2FE0D901003CEB24 /* FlexibleCoding.swift */; };
 		1C3EAEDA2FE0DAB8003CEB24 /* MindWeaverPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBD2FE0D901003CEB24 /* MindWeaverPaths.swift */; };
 		1C3EAEDB2FE0DAB8003CEB24 /* DomainColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEBB2FE0D901003CEB24 /* DomainColorPalette.swift */; };
@@ -32,6 +34,8 @@
 		1C3EAEE22FE0DACB003CEB24 /* NoteSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */; };
 		1C3EAEE32FE0DACB003CEB24 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */; };
 		1C3EAEE42FE0DACB003CEB24 /* NoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */; };
+		1C3EAF162FE30000003CEB24 /* MarkdownEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAF122FE30000003CEB24 /* MarkdownEditorView.swift */; };
+		1C3EAF172FE30000003CEB24 /* MarkdownWorkspaceSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAF132FE30000003CEB24 /* MarkdownWorkspaceSidebarView.swift */; };
 		1C3EAEE52FE0DACB003CEB24 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC42FE0D901003CEB24 /* ContentView.swift */; };
 		1C3EAEE62FE0DACB003CEB24 /* MindWeaverApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAECD2FE0D901003CEB24 /* MindWeaverApp.swift */; };
 		1C3EAEE72FE0DACB003CEB24 /* CommandOutputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3EAEC32FE0D901003CEB24 /* CommandOutputView.swift */; };
@@ -51,6 +55,8 @@
 		1C3EAEB52FE0D901003CEB24 /* MWNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWNote.swift; sourceTree = "<group>"; };
 		1C3EAEB62FE0D901003CEB24 /* MWTodo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MWTodo.swift; sourceTree = "<group>"; };
 		1C3EAEB72FE0D901003CEB24 /* SidebarMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarMode.swift; sourceTree = "<group>"; };
+		1C3EAF102FE30000003CEB24 /* MarkdownWorkspace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownWorkspace.swift; sourceTree = "<group>"; };
+		1C3EAF112FE30000003CEB24 /* MarkdownEditorDisplayMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorDisplayMode.swift; sourceTree = "<group>"; };
 		1C3EAEB92FE0D901003CEB24 /* mind-weaver.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "mind-weaver.png"; sourceTree = "<group>"; };
 		1C3EAEEC2FE0E7A0003CEB24 /* mind-weaver-logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "mind-weaver-logo.png"; sourceTree = "<group>"; };
 		1C3EAEED2FE0E7A0003CEB24 /* breath-brain.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "breath-brain.png"; sourceTree = "<group>"; };
@@ -72,6 +78,8 @@
 		1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphLayoutEngine.swift; sourceTree = "<group>"; };
 		1C3EAEC72FE0D901003CEB24 /* GraphPlaceholderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphPlaceholderView.swift; sourceTree = "<group>"; };
 		1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDetailView.swift; sourceTree = "<group>"; };
+		1C3EAF122FE30000003CEB24 /* MarkdownEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorView.swift; sourceTree = "<group>"; };
+		1C3EAF132FE30000003CEB24 /* MarkdownWorkspaceSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownWorkspaceSidebarView.swift; sourceTree = "<group>"; };
 		1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteSidebarView.swift; sourceTree = "<group>"; };
 		1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1C3EAECB2FE0D901003CEB24 /* TodoInspectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoInspectorView.swift; sourceTree = "<group>"; };
@@ -113,6 +121,8 @@
 			isa = PBXGroup;
 			children = (
 				1C3EAEB32FE0D901003CEB24 /* FileNode.swift */,
+				1C3EAF112FE30000003CEB24 /* MarkdownEditorDisplayMode.swift */,
+				1C3EAF102FE30000003CEB24 /* MarkdownWorkspace.swift */,
 				1C3EAEB42FE0D901003CEB24 /* MWGraph.swift */,
 				1C3EAEB52FE0D901003CEB24 /* MWNote.swift */,
 				1C3EAEB62FE0D901003CEB24 /* MWTodo.swift */,
@@ -163,6 +173,8 @@
 				1C3EAEC52FE0D901003CEB24 /* DashboardView.swift */,
 				1C3EAEC62FE0D901003CEB24 /* GraphLayoutEngine.swift */,
 				1C3EAEC72FE0D901003CEB24 /* GraphPlaceholderView.swift */,
+				1C3EAF122FE30000003CEB24 /* MarkdownEditorView.swift */,
+				1C3EAF132FE30000003CEB24 /* MarkdownWorkspaceSidebarView.swift */,
 				1C3EAEC82FE0D901003CEB24 /* NoteDetailView.swift */,
 				1C3EAEC92FE0D901003CEB24 /* NoteSidebarView.swift */,
 				1C3EAECA2FE0D901003CEB24 /* SettingsView.swift */,
@@ -296,6 +308,8 @@
 				1C3EAED62FE0DAA8003CEB24 /* MWNote.swift in Sources */,
 				1C3EAED72FE0DAA8003CEB24 /* SidebarMode.swift in Sources */,
 				1C3EAED82FE0DAA8003CEB24 /* FileNode.swift in Sources */,
+				1C3EAF152FE30000003CEB24 /* MarkdownEditorDisplayMode.swift in Sources */,
+				1C3EAF142FE30000003CEB24 /* MarkdownWorkspace.swift in Sources */,
 				1C3EAED12FE0DA9D003CEB24 /* MindWeaverEngine.swift in Sources */,
 				1C3EAEDD2FE0DABF003CEB24 /* AppModel.swift in Sources */,
 				1C3EAED92FE0DAB8003CEB24 /* FlexibleCoding.swift in Sources */,
@@ -305,6 +319,8 @@
 				1C3EAEE12FE0DACB003CEB24 /* TodoInspectorView.swift in Sources */,
 				1C3EAEE22FE0DACB003CEB24 /* NoteSidebarView.swift in Sources */,
 				1C3EAEE32FE0DACB003CEB24 /* SettingsView.swift in Sources */,
+				1C3EAF162FE30000003CEB24 /* MarkdownEditorView.swift in Sources */,
+				1C3EAF172FE30000003CEB24 /* MarkdownWorkspaceSidebarView.swift in Sources */,
 				1C3EAEE42FE0DACB003CEB24 /* NoteDetailView.swift in Sources */,
 				1C3EAEE52FE0DACB003CEB24 /* ContentView.swift in Sources */,
 				1C3EAEE62FE0DACB003CEB24 /* MindWeaverApp.swift in Sources */,
